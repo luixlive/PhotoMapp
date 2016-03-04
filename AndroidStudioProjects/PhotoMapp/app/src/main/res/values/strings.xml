@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">PhotoMapp</string>
+    <string name="preferencias">Preferencias</string>
+    <string name="mapa">Mapa</string>
+
+    <string name="permiso_camara_denegado">Sin acceso a la cámara</string>
+    <string name="permiso_ubicacion_denegado">Sin acceso a la ubicación</string>
+    <string name="captura_imagen_fallida">No se puede obtener imágenes de la cámara</string>
+    <string name="toast_foto_tomada">Guardando foto</string>
+
+    <string name="descripcion_foto">Vista donde que utiliza el adaptador para mostrar las fotos.</string>
+    <string name="nombre_hilo_camara">Hilo Camara</string>
+
+    <string name="preferencia_autonombrar_fotos_key">autonombrar_fotos</string>
+    <string name="preferencia_autonombrar_fotos_titulo">Autonombrar Fotos</string>
+    <string name="preferencia_autonombrar_fotos_descripcion">Nombrar tus fotos de acuerdo a la fecha actual</string>
+
+    <string name="maps_API_key">AIzaSyA4Fy8W6ZFlGQngRFPHGkxa6t_mRFMGzvg</string>
+    <string name="google_app_id">absolute-pulsar-122006</string>
+    <string name="no_escritura_posible">No es posible guardar la foto</string>
+    <string name="titulo_dialogo_nombre_foto">Nombre de la Foto</string>
+    <string name="aceptar">Aceptar</string>
+</resources>
