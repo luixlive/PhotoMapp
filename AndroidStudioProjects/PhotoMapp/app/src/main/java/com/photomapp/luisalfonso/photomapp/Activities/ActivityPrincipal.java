@@ -23,7 +23,6 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.location.Location;
-import android.location.LocationManager;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
@@ -45,6 +44,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.DialogoNombreFoto;
+import com.photomapp.luisalfonso.photomapp.ManejadorUbicacion;
 import com.photomapp.luisalfonso.photomapp.R;
 import com.photomapp.luisalfonso.photomapp.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
@@ -75,7 +75,7 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
 
     //Macros
     private static final int PERMISO_ACCESO_CAMARA = 0;
-    private static final int PERMISO_ACCESO_UBICACION = 1;
+    public static final int PERMISO_ACCESO_UBICACION = 1;
     private static final int ESTADO_PREVIEW = 0;
     private static final int ESTADO_ESPERANDO_ENFOQUE = 1;
     private static final int ESTADO_ESPERANDO_PRECAPTURA = 2;
@@ -104,6 +104,9 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
     //Variables para las acciones que se ejecutaran en background
     private HandlerThread hilo_background;
     private Handler handler;
+
+    //Variable apoyo para obtencion de la ubicacion
+    private ManejadorUbicacion manejador_ubicacion;
 
     //Variables de apoyo para manejar la camara
     private int estado_actual_camara = ESTADO_PREVIEW;
@@ -156,14 +159,17 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
                         //Si elegio autonombrar fotos en preferencias se pone el nombre por default
                         if (autonombrar_fotos) {
                             Toast.makeText(ActivityPrincipal.this, getString(R.string.toast_foto_tomada), Toast.LENGTH_SHORT).show();
-                            Location ubicacion = obtenerUbicacion();
-                            LatLng lat_y_long = null;
+                            Location ubicacion = manejador_ubicacion.obtenerUbicacion();
+                            LatLng lat_y_long;
                             if (ubicacion != null) {
                                 lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
+                                handler.post(new GuardadorImagen(foto_tomada, new File(archivo + File.separator + nombre_foto +
+                                        EXTENSION_ARCHIVO_FOTO), nombre_foto, Util.obtenerFecha("dd-MM-yyyy"),
+                                        lat_y_long.latitude, lat_y_long.longitude));
+                            } else{
+                                Toast.makeText(ActivityPrincipal.this, getString(R.string.no_hay_ubicacion),
+                                        Toast.LENGTH_SHORT).show();
                             }
-                            handler.post(new GuardadorImagen(foto_tomada, new File(archivo + File.separator + nombre_foto +
-                                    EXTENSION_ARCHIVO_FOTO), nombre_foto, Util.obtenerFecha("dd-MM-yyyy"),
-                                    lat_y_long.latitude, lat_y_long.longitude));
                             dejarDeEnfocar();
                         }
                         //Si no eligio autonombrar se le muestra un dialogo para que elija el nombre de la foto
@@ -257,6 +263,7 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
         setContentView(R.layout.activity_principal);
 
         //Directorio de las fotos
+        manejador_ubicacion = new ManejadorUbicacion(this);
         archivo = obtenerDirectorioFotos();
         contenedor_imagen_camara = (TextureView) findViewById(R.id.contenedor_imagen_camara);
     }
@@ -278,15 +285,18 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
             abrirCamara();
         else
             contenedor_imagen_camara.setSurfaceTextureListener(this);
+        //Se obtienen las preferencias de usuario y se comienza a actualizar la ubicacion
         SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
         autonombrar_fotos = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_AUTONOMBRAR_FOTO_KEY, false);
+        manejador_ubicacion.comenzarActualizacionUbicacion();
     }
 
     @Override
     protected void onPause() {
-        //Cierra la camara y termina con los procesos de background
+        //Cierra la camara y termina con los procesos de background y obtencion de ubicacion
         cerrarCamara();
         terminarHiloBackground();
+        manejador_ubicacion.detenerActualizacionUbicacion();
 
         super.onPause();
     }
@@ -355,13 +365,16 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
     public void nombreSeleccionado(String nombre) {
         //Una vez que el usuario seleccione el nombre, se guarda la imagen y deja de enfocar
         Toast.makeText(ActivityPrincipal.this, getString(R.string.toast_foto_tomada), Toast.LENGTH_SHORT).show();
-        Location ubicacion = obtenerUbicacion();
-        LatLng lat_y_long = null;
+        Location ubicacion = manejador_ubicacion.obtenerUbicacion();
+        LatLng lat_y_long;
         if (ubicacion != null) {
             lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
+            handler.post(new GuardadorImagen(foto_tomada,
+                    new File(archivo + File.separator + nombre + EXTENSION_ARCHIVO_FOTO), nombre,
+                    Util.obtenerFecha("dd-MM-yyyy"), lat_y_long.latitude, lat_y_long.longitude));
+        } else{
+            Toast.makeText(ActivityPrincipal.this, getString(R.string.no_hay_ubicacion), Toast.LENGTH_SHORT).show();
         }
-        handler.post(new GuardadorImagen(foto_tomada, new File(archivo + File.separator + nombre + EXTENSION_ARCHIVO_FOTO), nombre,
-                Util.obtenerFecha("dd-MM-yyyy"), lat_y_long.latitude, lat_y_long.longitude));
         dejarDeEnfocar();
     }
 
@@ -671,20 +684,6 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
             Log.e(LOG_TAG, "No se pudo crear el directorio.");
         }
         return directorio;
-    }
-
-    /**
-     * obtenerUbicacion: Regresa la ultima ubicacion conocida del usuario.
-     * @return Location con la ubicacion del usuario.
-     */
-    private Location obtenerUbicacion() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISO_ACCESO_UBICACION);
-        }
-        return ((LocationManager) getSystemService(Context.LOCATION_SERVICE)).getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
     }
 
     /**

@@ -50,7 +50,7 @@ public class LectorBitmaps {
     //Variable que representa nuestra memoria cache para almacenar las imagenes
     private LruCache<String, Bitmap> memoria_cache;
     //Set de referencias de los bitmaps que se van desechando para reutilizarlos y ahorrar memoria
-    final Set<SoftReference<Bitmap>> bitmaps_desechados;
+    private final Set<SoftReference<Bitmap>> bitmaps_desechados;
 
     /**
      * LectorBitmaps: Constructor. Obtiene el alto de la pantalla y el contenedor de la imagen, y obtiene la imagen cargando que
@@ -67,7 +67,7 @@ public class LectorBitmaps {
     }
 
     /**
-     * obtenerImagenCargando: Obtiene el bitmap "cagando" que se situan en las posiciones de la lista donde aun no cargan
+     * obtenerImagenCargando: Obtiene el bitmap "cargando" que se situan en las posiciones de la lista donde aun no cargan
      * las imagenes.
      * @param activity contexto donde se ubica la lista.
      * @return bitmap con la imagen "cargando"
@@ -267,6 +267,7 @@ public class LectorBitmaps {
         if (inBitmap != null) {
             opciones.inBitmap = inBitmap;
         }
+
     }
 
     /**

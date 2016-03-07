@@ -15,9 +15,10 @@
     <string name="preferencia_autonombrar_fotos_titulo">Autonombrar Fotos</string>
     <string name="preferencia_autonombrar_fotos_descripcion">Nombrar tus fotos de acuerdo a la fecha actual</string>
 
-    <string name="maps_API_key">AIzaSyA4Fy8W6ZFlGQngRFPHGkxa6t_mRFMGzvg</string>
+    <string name="maps_API_key">AIzaSyArO8QKclhzidkWZAmD-ptKXQLTr3QLpg0</string>
     <string name="google_app_id">absolute-pulsar-122006</string>
     <string name="no_escritura_posible">No es posible guardar la foto</string>
     <string name="titulo_dialogo_nombre_foto">Nombre de la Foto</string>
     <string name="aceptar">Aceptar</string>
+    <string name="no_hay_ubicacion">No se encuentra la ubicacion</string>
 </resources>
