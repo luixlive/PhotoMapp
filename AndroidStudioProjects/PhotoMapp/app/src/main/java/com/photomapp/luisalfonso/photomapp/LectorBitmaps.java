@@ -28,7 +28,7 @@ import java.util.Set;
  */
 public class LectorBitmaps {
 
-    public static final String LOG_TAG = "LectorBitmaps";
+    public static final String LOG_TAG = "LECTOR BITMAPS";
 
     //Macros para indicar si la imagen se va a mostrar en la lista de imagenes o si el usuario solicito ampliarla
     public static final int IMAGEN_LISTA = 0;
@@ -37,7 +37,7 @@ public class LectorBitmaps {
     public static final int RELACION_PANTALLA_LISTA = 4;
     //Modificar si se desea cambiar el tamano de la imagen ampliada
     public static final int RELACION_PANTALLA_IMG_AMPLIADA = 2;
-    //String de apoyo
+    //String de apoyo para saber si cancelar la carga de una imagen en background
     private static final String RUTA_AUN_NO_INDICADA = "NULO";
     //Macros de apoyo para el manejo de la memoria cache (fraccion equivale a que se usara un octavo de la memoria disponble)
     private static final int KILO_BYTE = 1024;
@@ -57,6 +57,7 @@ public class LectorBitmaps {
      * se muestra mientras se obtienen los bitmaps.
      */
     public LectorBitmaps(Activity activity) {
+        //Se obtienen las medidas de las imagenes de acuerdo al smartphone utilizado
         int pantalla_alto = activity.getResources().getDisplayMetrics().heightPixels;
         longitud_lado_img_lista = pantalla_alto/RELACION_PANTALLA_LISTA;
         longitud_lado_img_ampliada = pantalla_alto/RELACION_PANTALLA_IMG_AMPLIADA;
@@ -70,11 +71,11 @@ public class LectorBitmaps {
      * obtenerImagenCargando: Obtiene el bitmap "cargando" que se situan en las posiciones de la lista donde aun no cargan
      * las imagenes.
      * @param activity contexto donde se ubica la lista.
-     * @return bitmap con la imagen "cargando"
      */
-    private Bitmap obtenerImagenCargando(Activity activity) {
+    private void obtenerImagenCargando(Activity activity) {
         //Obtenemos el icono
         Bitmap icono_cache = BitmapFactory.decodeResource(activity.getResources(), R.mipmap.ic_guardando_cache);
+
         //Con ayuda de las librerias Canvas creamos un rectangulo y ponemos el icono justo en el centro
         imagen_cargando = Bitmap.createBitmap(longitud_lado_img_lista, longitud_lado_img_lista, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(imagen_cargando);
@@ -84,7 +85,6 @@ public class LectorBitmaps {
                 longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getWidth())/2),
                 longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getHeight())/2));
         canvas.drawBitmap(icono_cache, null, rectangulo_posicion_icono, null);
-        return imagen_cargando;
     }
 
     /**
@@ -278,7 +278,7 @@ public class LectorBitmaps {
     protected Bitmap obtenerBitmapDesechado(BitmapFactory.Options opciones) {
         Bitmap bitmap = null;
 
-        if (bitmaps_desechados != null && !bitmaps_desechados.isEmpty()) {
+        if (!bitmaps_desechados.isEmpty()) {
             synchronized (bitmaps_desechados) {
                 final Iterator<SoftReference<Bitmap>> iterador = bitmaps_desechados.iterator();
                 Bitmap desechado;
@@ -353,9 +353,11 @@ public class LectorBitmaps {
             if (isCancelled()) {
                 bitmap = null;
             }
+            //noinspection ConstantConditions
             if (referencia_contenedor_imagen != null && bitmap != null) {
                 final ImageView contenedor_imagen = referencia_contenedor_imagen.get();
                 final HiloExtractorBitmap extractor = obtenerHiloExtractorBitmap(contenedor_imagen);
+                //noinspection ConstantConditions
                 if (this == extractor && contenedor_imagen != null) {
                     contenedor_imagen.setImageBitmap(bitmap);
                 }

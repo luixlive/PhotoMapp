@@ -67,11 +67,10 @@ import java.util.concurrent.TimeUnit;
 public class ActivityPrincipal extends AppCompatActivity implements TextureView.SurfaceTextureListener,
         DialogoNombreFoto.NombreSeleccionadoListener {
 
-    private static final String LOG_TAG = ActivityPrincipal.class.getName();
+    private static final String LOG_TAG = "ACTIVITY PRINCIPAL";
 
     //Macros publicas para compartir datos entre activities
     public static final String EXTRA_LECTURA_POSIBLE = "ELP";
-    public static final String EXTRA_ESCRITURA_POSIBLE = "EEP";
 
     //Macros
     private static final int PERMISO_ACCESO_CAMARA = 0;
@@ -262,7 +261,7 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_principal);
 
-        //Directorio de las fotos
+        //Iniciamos el manejador de la ubicacion, el direcotorio de las fotos y el contenedor de las imagenes
         manejador_ubicacion = new ManejadorUbicacion(this);
         archivo = obtenerDirectorioFotos();
         contenedor_imagen_camara = (TextureView) findViewById(R.id.contenedor_imagen_camara);
@@ -311,7 +310,6 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
                 //Informamos a la activity si se puede acceder al almacenamiento externo
                 Intent intent = new Intent(this, ActivityMapa.class);
                 intent.putExtra(EXTRA_LECTURA_POSIBLE, lectura_posible);
-                intent.putExtra(EXTRA_ESCRITURA_POSIBLE, escritura_posible);
                 startActivity(intent);
                 return true;
             default:
@@ -415,25 +413,26 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, PERMISO_ACCESO_CAMARA);
         }
+        if (permiso_acceso_camara) {
+            //Configuramos las variables y obtenemos el id de la camara principal
+            String id_camara = obtenerCaracteristicasCamara();
 
-        //Configuramos las variables y obtenemos el id de la camara principal
-        String id_camara = obtenerCaracteristicasCamara();
-
-        //Abrimos la camara utilizando el handler y nos apoyamos de un semaforo para bloquear apertura y cerrado
-        //de la camara
-        CameraManager administrador_camaras = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        try {
-            if (!semaforo_abrir_cerrar_camara.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
-                Log.e(LOG_TAG, "Demasiado tiempo esperando a la camara.");
+            //Abrimos la camara utilizando el handler y nos apoyamos de un semaforo para bloquear apertura y cerrado
+            //de la camara
+            CameraManager administrador_camaras = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            try {
+                if (!semaforo_abrir_cerrar_camara.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
+                    Log.e(LOG_TAG, "Demasiado tiempo esperando a la camara.");
+                }
+                if (id_camara != null)
+                    administrador_camaras.openCamera(id_camara, estado_camara_listener, handler);
+            } catch (CameraAccessException e) {
+                Log.e(LOG_TAG, "No se puede acceder a la camara: ");
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                Log.e(LOG_TAG, "Se destruyo el hilo de la activity mientras se trataba de adquirir el semaforo: ");
+                e.printStackTrace();
             }
-            if (id_camara != null)
-                administrador_camaras.openCamera(id_camara, estado_camara_listener, handler);
-        } catch (CameraAccessException e) {
-            Log.e(LOG_TAG, "No se puede acceder a la camara: ");
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            Log.e(LOG_TAG, "Se destruyo el hilo de la activity mientras se trataba de adquirir el semaforo: ");
-            e.printStackTrace();
         }
     }
 
@@ -684,6 +683,10 @@ public class ActivityPrincipal extends AppCompatActivity implements TextureView.
             Log.e(LOG_TAG, "No se pudo crear el directorio.");
         }
         return directorio;
+    }
+
+    public boolean ubicacionPermitida(){
+        return permiso_acceso_ubicacion;
     }
 
     /**

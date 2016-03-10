@@ -4,5 +4,10 @@
         android:key="@string/preferencia_autonombrar_fotos_key"
         android:title="@string/preferencia_autonombrar_fotos_titulo"
         android:summary="@string/preferencia_autonombrar_fotos_descripcion"
-        android:defaultValue="false" />
+        android:defaultValue="true" />
+    <CheckBoxPreference
+        android:key="@string/preferencia_utilizar_gps_key"
+        android:title="@string/preferencia_utilizar_gps_titulo"
+        android:summary="@string/preferencia_utilizar_gps_descripcion"
+        android:defaultValue="true" />
 </PreferenceScreen>

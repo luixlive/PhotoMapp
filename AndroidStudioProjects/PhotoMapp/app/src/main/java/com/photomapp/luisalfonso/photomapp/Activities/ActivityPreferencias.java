@@ -12,6 +12,7 @@ import com.photomapp.luisalfonso.photomapp.R;
 public class ActivityPreferencias extends AppCompatActivity {
 
     //Macro
+    public static final String PREFERENCIA_UTILIZAR_GPS_KEY = "utilizar_gps";
     public static final String PREFERENCIA_AUTONOMBRAR_FOTO_KEY = "autonombrar_fotos";  //Mantener sincronizada esta variable en
                                                                                         //el archivo de Strings
 

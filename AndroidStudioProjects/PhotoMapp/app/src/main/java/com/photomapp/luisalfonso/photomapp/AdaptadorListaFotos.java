@@ -30,7 +30,8 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
 
         for (int i = 0; i < nombres_fotos.length; i++){
             rutas_fotos[i] = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + File.separator +
-                    ActivityPrincipal.NOMBRE_ALBUM_FOTOS + File.separator + nombres_fotos[i] + ActivityPrincipal.EXTENSION_ARCHIVO_FOTO;
+                    ActivityPrincipal.NOMBRE_ALBUM_FOTOS + File.separator + nombres_fotos[i] +
+                    ActivityPrincipal.EXTENSION_ARCHIVO_FOTO;
         }
 
         //Iniciamos el lector de las imagenes y le pasamos la imagen "cargando"

@@ -1,15 +1,17 @@
 package com.photomapp.luisalfonso.photomapp;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 
+import com.photomapp.luisalfonso.photomapp.Activities.ActivityPreferencias;
 import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
 
 /**
@@ -18,14 +20,14 @@ import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
  */
 public class ManejadorUbicacion {
 
-    //Macros para actualizacion de ubicacion (cada 30 segundos o cada que el usuario se mueva 25 metros)
-    private static final int TIEMPO_ACTUALIZACION = 1000*30;
-    private static final int DISTANCIA_ACTUALIZACION = 25;
+    //Macros para actualizacion de ubicacion (cada 20 segundos o cada que el usuario se mueva 20 metros)
+    private static final int TIEMPO_ACTUALIZACION = 1000*20;
+    private static final int DISTANCIA_ACTUALIZACION = 20;
     private static final int DOS_MINUTOS = 1000*60*2;
 
     //Variables de apoyo
     private LocationManager manejador;
-    private Activity activity_padre;
+    private ActivityPrincipal activity_padre;
     private Location ultima_ubicacion = null;
     private LocationListener cambio_ubicacion_listener;
 
@@ -33,7 +35,7 @@ public class ManejadorUbicacion {
      * ManejadorUbicacion; Constructor, inicia las variables de apoyo
      * @param activity Activity padre para el acceso a los servicios de ubicacion
      */
-    public ManejadorUbicacion(Activity activity) {
+    public ManejadorUbicacion(ActivityPrincipal activity) {
         activity_padre = activity;
         manejador = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
         cambio_ubicacion_listener = new LocationListener() {
@@ -75,8 +77,18 @@ public class ManejadorUbicacion {
             ActivityCompat.requestPermissions(activity_padre, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION}, ActivityPrincipal.PERMISO_ACCESO_UBICACION);
         }
-        manejador.requestLocationUpdates(LocationManager.GPS_PROVIDER, TIEMPO_ACTUALIZACION, DISTANCIA_ACTUALIZACION,
-                cambio_ubicacion_listener);
+        if (activity_padre.ubicacionPermitida()) {
+            //Obtenemos la preferencia del usuario respecto a si quiere utilizar el GPS o no
+            SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(activity_padre);
+            boolean gps = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY, false);
+            if (gps) {
+                manejador.requestLocationUpdates(LocationManager.GPS_PROVIDER, TIEMPO_ACTUALIZACION, DISTANCIA_ACTUALIZACION,
+                        cambio_ubicacion_listener);
+            } else{
+                manejador.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, TIEMPO_ACTUALIZACION, DISTANCIA_ACTUALIZACION,
+                        cambio_ubicacion_listener);
+            }
+        }
     }
 
     /**
@@ -89,7 +101,9 @@ public class ManejadorUbicacion {
             ActivityCompat.requestPermissions(activity_padre, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION}, ActivityPrincipal.PERMISO_ACCESO_UBICACION);
         }
-        manejador.removeUpdates(cambio_ubicacion_listener);
+        if (activity_padre.ubicacionPermitida()) {
+            manejador.removeUpdates(cambio_ubicacion_listener);
+        }
     }
 
     /**

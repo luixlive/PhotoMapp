@@ -20,7 +20,8 @@ public class DialogoNombreFoto extends DialogFragment {
     //Macro
     private static final String KEY_TITULO_FOTO = "titulo_foto";
 
-    //Variables
+    //Variables nombre seleccionado nos ayuda a saber cuando se cierre el dialogo si este fue cancelado o si el usuario
+    //si cambio el nombre, y el listener es la interfaz que debe implementar la Activity para recibir los callbacks
     private boolean nombre_seleccionado = false;
     private NombreSeleccionadoListener listener;
 
@@ -43,11 +44,11 @@ public class DialogoNombreFoto extends DialogFragment {
     public void onAttach(Activity activity) {
         super.onAttach(activity);
 
-        //Obtenemos el listener (interfaz implementada) para enviar informacion a traves de el
+        //Obtenemos el listener (activity que implementa la interfaz) para enviar informacion a traves de el
         try {
             listener = (NombreSeleccionadoListener)activity;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString() + " se debe implementar OnHeadlineSelectedListener");
+            throw new ClassCastException(activity.toString() + " se debe implementar NombreSeleccionadoListener");
         }
     }
 
