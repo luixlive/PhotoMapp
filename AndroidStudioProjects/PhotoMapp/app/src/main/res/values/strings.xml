@@ -6,7 +6,8 @@
     <string name="permiso_camara_denegado">Sin acceso a la cámara</string>
     <string name="permiso_ubicacion_denegado">Sin acceso a la ubicación</string>
     <string name="captura_imagen_fallida">No se puede obtener imágenes de la cámara</string>
-    <string name="toast_foto_tomada">Guardando foto</string>
+    <string name="toast_foto_tomada">Guardada</string>
+    <string name="toast_foto_no_tomada">No se pudo guardar :(</string>
 
     <string name="descripcion_foto">Vista donde que utiliza el adaptador para mostrar las fotos.</string>
     <string name="nombre_hilo_camara">Hilo Camara</string>
@@ -16,7 +17,7 @@
     <string name="preferencia_autonombrar_fotos_descripcion">Nombrar tus fotos de acuerdo a la fecha actual</string>
     <string name="preferencia_utilizar_gps_key">utilizar_gps</string>
     <string name="preferencia_utilizar_gps_titulo">Utilizar GPS</string>
-    <string name="preferencia_utilizar_gps_descripcion">Utilizar el GPS dá una ubicación más exacta, pero gasta más batería</string>
+    <string name="preferencia_utilizar_gps_descripcion">El GPS dá una ubicación más exacta, pero gasta más batería</string>
 
     <string name="maps_API_key">AIzaSyArO8QKclhzidkWZAmD-ptKXQLTr3QLpg0</string>
     <string name="google_app_id">absolute-pulsar-122006</string>
