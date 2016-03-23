@@ -1,10 +1,9 @@
 package com.photomapp.luisalfonso.photomapp.Activities;
 
 import android.os.Bundle;
-import android.preference.PreferenceFragment;
 import android.support.v7.app.AppCompatActivity;
 
-import com.photomapp.luisalfonso.photomapp.R;
+import com.photomapp.luisalfonso.photomapp.Fragments.FragmentPreferencias;
 
 /**
  * Clase ActivityPreferencias: muestra las preferencias al usuario y le permite cambiarlas.
@@ -21,21 +20,7 @@ public class ActivityPreferencias extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         //Se utiliza el SettingsFragment para mostrar las preferencias
-        getFragmentManager().beginTransaction().replace(android.R.id.content, new SettingsFragment()).commit();
-    }
-
-    /**
-     * Clase SettingsFragment: extiende de PreferenceFragment y solo se le infla el menu de configuraciones.
-     */
-    public static class SettingsFragment extends PreferenceFragment {
-
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            //Se configuran las preferencias en el xml/configuraciones
-            addPreferencesFromResource(R.xml.configuraciones);
-        }
-
+        getFragmentManager().beginTransaction().replace(android.R.id.content, new FragmentPreferencias()).commit();
     }
 
 }

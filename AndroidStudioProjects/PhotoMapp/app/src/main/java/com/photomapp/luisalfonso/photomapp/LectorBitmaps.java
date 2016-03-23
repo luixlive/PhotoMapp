@@ -94,7 +94,7 @@ public class LectorBitmaps {
         //Con ayuda de las librerias Canvas creamos un rectangulo y ponemos el icono justo en el centro
         imagen_cargando = Bitmap.createBitmap(longitud_lado_img_lista, longitud_lado_img_lista, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(imagen_cargando);
-        canvas.drawColor(ContextCompat.getColor(activity, R.color.colorPrimary));
+        canvas.drawColor(ContextCompat.getColor(activity, R.color.colorAccent));
         Rect rectangulo_posicion_icono = new Rect((longitud_lado_img_lista-icono_cache.getWidth())/2,
                 (longitud_lado_img_lista-icono_cache.getHeight())/2,
                 longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getWidth())/2),

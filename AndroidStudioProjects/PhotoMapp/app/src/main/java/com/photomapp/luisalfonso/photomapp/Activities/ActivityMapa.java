@@ -363,7 +363,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             public void itemLongClick(View view, int position){
                 //Si el modo contextual no se ha iniciado, se comienza
                 if (modo_contextual != null) {
-                    adaptador.cambiarEstadoSeleccion(position);
+                    cambiarEstadoSeleccion(position);
                     return;
                 }
                 modo_contextual = startActionMode(ActivityMapa.this);
