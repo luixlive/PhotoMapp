@@ -42,8 +42,8 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
 
         for (String nombres_foto : nombres_fotos) {
             rutas_fotos.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + File.separator +
-                    ActivityPrincipal.NOMBRE_ALBUM_FOTOS + File.separator + nombres_foto +
-                    ActivityPrincipal.EXTENSION_ARCHIVO_FOTO);
+                    Util.NOMBRE_ALBUM_FOTOS + File.separator + nombres_foto +
+                    Util.EXTENSION_ARCHIVO_FOTO);
         }
 
         //Iniciamos el lector de las imagenes y le pasamos la imagen "cargando"
@@ -136,6 +136,10 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
         return items;
     }
 
+    /**
+     * eliminarImagenesLista: Se remueven la imagen de la posicion especificada de la lista.
+     * @param index int con la posicion de la foto a remover.
+     */
     public void eliminarImagenesLista(int index){
         //Si la imagen a eliminar esta seleccionada, se elimina la seleccion antes
         if (items_seleccionados.get(index)){

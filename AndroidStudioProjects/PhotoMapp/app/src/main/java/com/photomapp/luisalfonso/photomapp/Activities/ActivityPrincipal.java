@@ -12,7 +12,6 @@ import android.location.Location;
 import android.media.Image;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -52,8 +51,6 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
     //Macros
     public static final int PERMISO_ACCESO_CAMARA = 0;
     public static final int PERMISO_ACCESO_UBICACION = 1;
-    public static final String NOMBRE_ALBUM_FOTOS = "PhotoMapp";
-    public static final String EXTENSION_ARCHIVO_FOTO = ".jpg";
 
     //Variables de las preferencias del usuario
     private boolean autonombrar_fotos;
@@ -79,7 +76,9 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
 
         //Iniciamos el manejador de la ubicacion, el direcotorio de las fotos y el contenedor de las imagenes
         manejador_ubicacion = new ManejadorUbicacion(this);
-        archivo = obtenerDirectorioFotos();
+        archivo = Util.obtenerDirectorioFotos();
+        escritura_posible = Util.obtenerEscrituraPosible();
+        lectura_posible = Util.obtenerLecturaPosible();
         manejador_camara = new ManejadorCamara(this, (TextureView) findViewById(R.id.contenedor_imagen_camara));
     }
 
@@ -160,7 +159,7 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
             lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
 
             GuardadorImagen guardador = new GuardadorImagen(new File(archivo + File.separator + nombre +
-                    EXTENSION_ARCHIVO_FOTO), nombre,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
+                    Util.EXTENSION_ARCHIVO_FOTO), nombre,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
                     lat_y_long.latitude, lat_y_long.longitude);
             guardador.execute(foto_tomada);
         } else{
@@ -199,7 +198,7 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
                 if (ubicacion != null) {
                     lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
                     GuardadorImagen guardador = new GuardadorImagen(new File(archivo + File.separator + nombre_foto +
-                            EXTENSION_ARCHIVO_FOTO), nombre_foto,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
+                            Util.EXTENSION_ARCHIVO_FOTO), nombre_foto,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
                             lat_y_long.latitude, lat_y_long.longitude);
                     guardador.execute(foto_tomada);
                 }
@@ -214,32 +213,6 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
             Toast.makeText(ActivityPrincipal.this, ActivityPrincipal.this.getString(R.string.no_escritura_posible),
                     Toast.LENGTH_SHORT).show();
         }
-    }
-
-    /**
-     * obtenerDirectorioFotos: verifica que sea posible guardar datos en el almacenamiento externo y regresa el directorio donde
-     * se guardaran las fotos.
-     * @return File con el archivo donde se almacenan las fotos, si no es posible leer ni guardar regresa null
-     */
-    private File obtenerDirectorioFotos() {
-        String estado_almacenamiento = Environment.getExternalStorageState();
-        //Guardamos en sus variables respectivas si podemos escribir y leer del almacenamiento
-        if (!Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)) {
-            escritura_posible = false;
-            Log.w(LOG_TAG, "No se puede escribir en el almacenamiento externo.");
-            if (!Environment.MEDIA_MOUNTED_READ_ONLY.equals(estado_almacenamiento)) {
-                lectura_posible = false;
-                Log.e(LOG_TAG, "No se puede leer del almacenamiento externo.");
-                return null;
-            }
-        }
-        //Obtenemos el directorio de fotogragias con el nombre de la app
-        File directorio = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                NOMBRE_ALBUM_FOTOS);
-        if (!directorio.mkdirs()) {
-            Log.e(LOG_TAG, "No se pudo crear el directorio.");
-        }
-        return directorio;
     }
 
     public boolean ubicacionPermitida(){

@@ -37,6 +37,7 @@
             android:name=".Activities.ActivityMapa"
             android:parentActivityName=".Activities.ActivityPrincipal"
             android:label="@string/mapa"
+            android:windowSoftInputMode="adjustNothing"
             android:screenOrientation="portrait">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"

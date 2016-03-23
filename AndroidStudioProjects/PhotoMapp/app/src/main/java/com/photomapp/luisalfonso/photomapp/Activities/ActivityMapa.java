@@ -1,6 +1,7 @@
 package com.photomapp.luisalfonso.photomapp.Activities;
 
 import android.Manifest;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -28,6 +29,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.AdaptadorListaFotos;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoMostrarFoto;
+import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
 import com.photomapp.luisalfonso.photomapp.R;
 import com.photomapp.luisalfonso.photomapp.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
@@ -40,7 +42,8 @@ import java.util.List;
  * Clase ActivityMapa: muestra un mapa y las fotos que el usuraio a tomado. Al pulsar una foto el mapa muestra
  * donde se la tomó. Implementa la interfaz OnMapReadyCallback para obtener eventos del GoogleMap.
  */
-public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallback, ActionMode.Callback {
+public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallback, ActionMode.Callback,
+        DialogoNombreFoto.NombreSeleccionadoListener {
 
     //Etiqueta para la escritura al LOG
     private static final String LOG_TAG = "ACTIVITY MAPA";
@@ -93,22 +96,44 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         switch (item.getItemId()) {
             case R.id.borrar:
                 //Si se pulso borrar, se eliminan las imagenes de la base de datos y de la lista
-                String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
-                String[] args = new String[1];
-                List<Integer> selectedItemPositions = adaptador.obtenerItemsSelecionados();
-                for (int i = selectedItemPositions.size() - 1; i >= 0; i--) {
-                    adaptador.eliminarImagenesLista(selectedItemPositions.get(i));
-                    args[0] = String.valueOf(ids_fotos.get(selectedItemPositions.get(i)));
+                String clause_remove = ContratoPhotoMapp.Fotos._ID + " = ?";
+                String[] args_remove = new String[1];
+                List<Integer> posiciones_items_seleccionados = adaptador.obtenerItemsSelecionados();
+                for (int i = posiciones_items_seleccionados.size() - 1; i >= 0; i--) {
+                    adaptador.eliminarImagenesLista(posiciones_items_seleccionados.get(i));
+                    args_remove[0] = String.valueOf(ids_fotos.get(posiciones_items_seleccionados.get(i)));
                     getContentResolver().delete(
                             ContratoPhotoMapp.Fotos.CONTENT_URI,
-                            clause,
-                            args
+                            clause_remove,
+                            args_remove
                     );
-                    ids_fotos.remove((int) selectedItemPositions.get(i));
+                    ids_fotos.remove((int) posiciones_items_seleccionados.get(i));
                 }
                 eliminar_pulsado = true;
 
                 modo_contextual.finish();
+                return true;
+            case R.id.editar:
+                String projection[] = {
+                        ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE
+                };
+                String clause_update = ContratoPhotoMapp.Fotos._ID + " = ?";
+                String[] args_update = {String.valueOf(ids_fotos.get((adaptador.obtenerItemsSelecionados().get(0))))};
+                Cursor cursor = getContentResolver().query(
+                        ContratoPhotoMapp.Fotos.CONTENT_URI,
+                        projection,
+                        clause_update,
+                        args_update,
+                        null
+                );
+                if (cursor != null) {
+                    if (cursor.moveToFirst()) {
+                        DialogoNombreFoto dialogo = DialogoNombreFoto.nuevoDialogo(cursor.getString(
+                                cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE)));
+                        dialogo.show(getFragmentManager(), DialogoNombreFoto.class.getName());
+                    }
+                    cursor.close();
+                }
                 return true;
             default:
                 return false;
@@ -125,6 +150,63 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         } else{
             eliminar_pulsado = false;
         }
+    }
+
+    @Override
+    public void nombreSeleccionado(String nombre) {
+        if (Util.obtenerEscrituraPosible()) {
+            //Se actualiza el nombre en el archivo
+            String nombre_viejo;
+            String projection[] = {
+                    ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE
+            };
+            String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+            String[] args = {String.valueOf(ids_fotos.get((adaptador.obtenerItemsSelecionados().get(0))))};
+            Cursor cursor = getContentResolver().query(
+                    ContratoPhotoMapp.Fotos.CONTENT_URI,
+                    projection,
+                    clause,
+                    args,
+                    null
+            );
+            if (cursor != null) {
+                if (cursor.moveToFirst()) {
+                    nombre_viejo = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
+                    File carpeta_fotos = Util.obtenerDirectorioFotos();
+                    if (carpeta_fotos != null) {
+                        String ruta = carpeta_fotos.getPath();
+                        File foto_actualizada = new File(ruta + File.separator + nombre_viejo + Util.EXTENSION_ARCHIVO_FOTO);
+                        if (!foto_actualizada.renameTo(new File(ruta + File.separator + nombre + Util.EXTENSION_ARCHIVO_FOTO))){
+                            return;
+                        }
+                    }
+                }
+                cursor.close();
+            }
+
+            //Se actualiza el nombre en la base de datos
+            ContentValues nuevos_valores = new ContentValues();
+            nuevos_valores.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre);
+            int registros_actualizados = getContentResolver().update(
+                    ContratoPhotoMapp.Fotos.CONTENT_URI,
+                    nuevos_valores,
+                    clause,
+                    args
+            );
+            if (registros_actualizados == 1) {
+                Toast.makeText(getApplicationContext(), getString(R.string.actualizado), Toast.LENGTH_SHORT).show();
+                Log.i(LOG_TAG, "Se cambió el nombre de la imagen exitosamente");
+            } else if (registros_actualizados == 0) {
+                Log.e(LOG_TAG, "No se cambió el nombre de la imagen exitosamente");
+            } else {
+                Log.wtf(LOG_TAG, "Se actualizaron varios registros ¿?");
+            }
+        }
+    }
+
+    @Override
+    public void nombreCancelado() {
+        //Si el usuario cancela el dialogo para cambiar el nombre, no hay necesidad de hacer nada
     }
 
     /**
@@ -187,8 +269,8 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                 String nombre_foto = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
                 int id_foto = cursor.getInt(cursor.getColumnIndex(ContratoPhotoMapp.Fotos._ID));
 
-                File archivo_foto = new File(ruta_fotos + File.separator + ActivityPrincipal.NOMBRE_ALBUM_FOTOS +
-                        File.separator + nombre_foto + ActivityPrincipal.EXTENSION_ARCHIVO_FOTO);
+                File archivo_foto = new File(ruta_fotos + File.separator + Util.NOMBRE_ALBUM_FOTOS +
+                        File.separator + nombre_foto + Util.EXTENSION_ARCHIVO_FOTO);
                 if (archivo_foto.exists()) {
                     nombres_imagenes.add(nombre_foto);
                     ids_fotos.add(id_foto);
@@ -352,5 +434,4 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
     }
-
 }

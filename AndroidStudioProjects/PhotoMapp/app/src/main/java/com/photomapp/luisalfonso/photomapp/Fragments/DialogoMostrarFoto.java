@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
 import com.photomapp.luisalfonso.photomapp.LectorBitmaps;
 import com.photomapp.luisalfonso.photomapp.R;
+import com.photomapp.luisalfonso.photomapp.Util;
 
 import java.io.File;
 
@@ -31,7 +32,7 @@ public class DialogoMostrarFoto extends DialogFragment {
         DialogoMostrarFoto nuevo_fragment = new DialogoMostrarFoto();
         Bundle args = new Bundle();
         String ruta_foto = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + File.separator +
-                ActivityPrincipal.NOMBRE_ALBUM_FOTOS + File.separator + nombre + ActivityPrincipal.EXTENSION_ARCHIVO_FOTO;
+                Util.NOMBRE_ALBUM_FOTOS + File.separator + nombre + Util.EXTENSION_ARCHIVO_FOTO;
         args.putString(KEY_RUTA_FOTO, ruta_foto);
         args.putString(KEY_FECHA_FOTO, fecha);
         args.putString(KEY_CIUDAD_FOTO, ciudad);

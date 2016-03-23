@@ -5,10 +5,12 @@ import android.content.Context;
 import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.Environment;
 import android.util.Log;
 
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -19,6 +21,11 @@ import java.util.Locale;
  * Clase Util: Funciones que se utilizan en multiples partes de la app.
  */
 public class Util {
+
+    //Macros
+    private static final String LOG_TAG = "Util";
+    public static final String NOMBRE_ALBUM_FOTOS = "PhotoMapp";
+    public static final String EXTENSION_ARCHIVO_FOTO = ".jpg";
 
     /**
      * obtenerFecha: regresa la fecha actual en el formato especificado.
@@ -75,4 +82,43 @@ public class Util {
         }
     }
 
+    /**
+     * obtenerDirectorioFotos: verifica que sea posible guardar datos en el almacenamiento externo y regresa el directorio donde
+     * se guardaran las fotos.
+     * @return File con el archivo donde se almacenan las fotos, si no es posible leer ni guardar regresa null
+     */
+    public static File obtenerDirectorioFotos() {
+        String estado_almacenamiento = Environment.getExternalStorageState();
+        //Guardamos en sus variables respectivas si podemos escribir y leer del almacenamiento
+        if (Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)) {
+            //Obtenemos el directorio de fotogragias con el nombre de la app
+            File directorio = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                    NOMBRE_ALBUM_FOTOS);
+            if (!directorio.mkdirs()) {
+                Log.e(LOG_TAG, "No se pudo crear el directorio.");
+            }
+            return directorio;
+        }
+        return null;
+    }
+
+    public static boolean obtenerEscrituraPosible() {
+        String estado_almacenamiento = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)){
+            return true;
+        }
+        Log.w(LOG_TAG, "No se puede escribir en el almacenamiento externo.");
+        return false;
+    }
+
+    public static boolean obtenerLecturaPosible() {
+        String estado_almacenamiento = Environment.getExternalStorageState();
+        if (!Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)) {
+            if (!Environment.MEDIA_MOUNTED_READ_ONLY.equals(estado_almacenamiento)) {
+                Log.w(LOG_TAG, "No se puede leer en el almacenamiento externo.");
+                return false;
+            }
+        }
+        return true;
+    }
 }
