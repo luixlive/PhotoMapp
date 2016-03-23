@@ -1,4 +1,4 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Fragments;
 
 import android.app.Activity;
 import android.app.DialogFragment;
@@ -10,6 +10,8 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+
+import com.photomapp.luisalfonso.photomapp.R;
 
 /**
  * Clase DialogoNombreFoto: modela el dialogo que se muestra cada que se capture una foto para elegir el nombre

@@ -1,16 +1,19 @@
 package com.photomapp.luisalfonso.photomapp;
 
-import android.app.Activity;
 import android.os.Environment;
 import android.support.v7.widget.RecyclerView;
+import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import com.photomapp.luisalfonso.photomapp.Activities.ActivityMapa;
 import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Clase AdaptadorListaFotos: Adaptador que llena una RecyclerView para mostrar las fotos debajo del GoogleMap en la
@@ -19,23 +22,32 @@ import java.io.File;
 public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFotos.ContenedorFotos>  {
 
     //Fotos
-    private String rutas_fotos[];
-    private OnItemClickListener listener;
+    public ArrayList<String> rutas_fotos = new ArrayList<>();
+
+    //Listener para informar cuando se pulsan las imagenes
+    private EventosAdaptadorListener listener;
+
+    //Manejador de bitmaps
     private LectorBitmaps lector_imagenes;
-    private Activity activity_padre;
 
-    public AdaptadorListaFotos(Activity activity, String nombres_fotos[]){
-        this.rutas_fotos = new String[nombres_fotos.length];
+    //Activity padre
+    private ActivityMapa activity_padre;
+
+    //Arreglo de booleanos donde iremos almacenando los items seleccionados
+    private SparseBooleanArray items_seleccionados;
+
+    public AdaptadorListaFotos(ActivityMapa activity, String nombres_fotos[]){
         activity_padre = activity;
+        items_seleccionados = new SparseBooleanArray();
 
-        for (int i = 0; i < nombres_fotos.length; i++){
-            rutas_fotos[i] = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + File.separator +
-                    ActivityPrincipal.NOMBRE_ALBUM_FOTOS + File.separator + nombres_fotos[i] +
-                    ActivityPrincipal.EXTENSION_ARCHIVO_FOTO;
+        for (String nombres_foto : nombres_fotos) {
+            rutas_fotos.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + File.separator +
+                    ActivityPrincipal.NOMBRE_ALBUM_FOTOS + File.separator + nombres_foto +
+                    ActivityPrincipal.EXTENSION_ARCHIVO_FOTO);
         }
 
         //Iniciamos el lector de las imagenes y le pasamos la imagen "cargando"
-        lector_imagenes = new LectorBitmaps(activity);
+        lector_imagenes = LectorBitmaps.obtenerInstancia(activity);
     }
 
     @Override
@@ -49,58 +61,124 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
     public void onBindViewHolder(ContenedorFotos holder, int position) {
         //Limitamos que cada contenedor de las fotos solo pueda ser tan ancho como es de alto
         ImageView contenedor_imagen = holder.obtenerContenedorImagen();
+        //Declaramos si esta activado o no (seleccionado) para pintar su background
+        contenedor_imagen.setActivated(items_seleccionados.get(position));
         contenedor_imagen.setAdjustViewBounds(true);
         contenedor_imagen.setMaxWidth(lector_imagenes.obtenerLongitudImagenLista());
         //Cuando un holder esta listo, se pobla el layout de la imagen con su foto correspondiente
-        lector_imagenes.extraerImagenEn(activity_padre, contenedor_imagen, rutas_fotos[position], LectorBitmaps.IMAGEN_LISTA);
+        lector_imagenes.extraerImagenEn(activity_padre, contenedor_imagen, rutas_fotos.get(position),
+                LectorBitmaps.IMAGEN_LISTA);
     }
 
     @Override
     public int getItemCount() {
-        return rutas_fotos.length;
+        return rutas_fotos.size();
     }
 
     /**
-     * Interface OnItemClickListener: Por default, el RecyclerView no cuenta con OnItemClickListener, por lo que nosotros lo
+     * Interface EventosAdaptadorListener: Por default, el RecyclerView no cuenta con OnItemClickListener, por lo que nosotros lo
      * creamos a traves del adaptador.
      */
-    public interface OnItemClickListener {
-        void onItemClick(View view , int position);
+    public interface EventosAdaptadorListener {
+        void itemClick(View view , int position);
+        void itemLongClick(View view , int position);
     }
 
     /**
      * setOnItemClickListener: Inicializa el OnItemClickListener
-     * @param listener onbjeto OnItemClickListener que utilizaremos
+     * @param listener onbjeto ImagenPulsadaListener que utilizaremos
      */
-    public void setOnItemClickListener(final OnItemClickListener listener){
+    public void setOnItemClickListener(final EventosAdaptadorListener listener){
         this.listener = listener;
     }
 
     /**
-     * Clase ContenedorFotos: Clase auxiliar que utilizamos como ViewHolder pero indicamos los recursos que utilizaaremos
-     * (un ImageView para la foto).
+     * cambiarEstadoSeleccion: Cambia el estado del item en la posicion establecida entre seleccionado y no seleccionado
+     * @param posicion int correspondiente al index del item
      */
-    public class ContenedorFotos extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public void cambiarEstadoSeleccion(int posicion){
+        if (items_seleccionados.get(posicion, false)) {
+            items_seleccionados.delete(posicion);
+        }
+        else {
+            items_seleccionados.put(posicion, true);
+        }
+        //Despues de cambiar el estado se notifica al adaptador para que actualice la lista
+        notifyItemChanged(posicion);
+    }
+
+    /**
+     * borrarSelecciones: Limpia todas las selecciones de imagenes.
+     */
+    public void borrarSelecciones(){
+        //Se limpia la lista y se notifica al adaptador
+        items_seleccionados.clear();
+        notifyDataSetChanged();
+    }
+
+    /**
+     * obtenerNumeroItemsSeleccionados: Regresa el numero total de items seleccionados.
+     * @return int de items seleccionados.
+     */
+    public int obtenerNumeroItemsSeleccionados() {
+        return items_seleccionados.size();
+    }
+
+    /**
+     * obtenerItemsSelecionados: Regresa una lista con los items seleccionados.
+     * @return List de Integers que equivale a la posicion de las imagenes en la lista
+     */
+    public List<Integer> obtenerItemsSelecionados(){
+        List<Integer> items = new ArrayList<>(items_seleccionados.size());
+        for (int i = 0; i < items_seleccionados.size(); i++) {
+            items.add(items_seleccionados.keyAt(i));
+        }
+        return items;
+    }
+
+    public void eliminarImagenesLista(int index){
+        //Si la imagen a eliminar esta seleccionada, se elimina la seleccion antes
+        if (items_seleccionados.get(index)){
+            items_seleccionados.delete(index);
+        }
+        rutas_fotos.remove(index);
+        notifyItemRemoved(index);
+    }
+
+    /**
+     * Clase ContenedorFotos: Clase auxiliar que utilizamos como ViewHolder pero indicamos los recursos que utilizaaremos
+     * (un ImageView para la foto). Extiende de SwappingHolder, clase que es parte de la libreria de
+     * https://bignerdranch.github.io/recyclerview-multiselect/ y es recomendada para hacer los contenedores seleciconables
+     */
+    public class ContenedorFotos extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
 
         //Contenedor para la foto
         private ImageView contenedor_imagen;
 
         public ContenedorFotos(View layout_foto) {
             super(layout_foto);
+
             contenedor_imagen = (ImageView)layout_foto.findViewById(R.id.foto);
             layout_foto.setOnClickListener(this);
+            layout_foto.setOnLongClickListener(this);
         }
-
         public ImageView obtenerContenedorImagen(){
             return contenedor_imagen;
         }
 
         @Override
         public void onClick(View v) {
-            //Avisamos al listener que se presiono un item
-            if (listener != null){
-                listener.onItemClick(v, getAdapterPosition());
+            if (listener != null) {
+                listener.itemClick(v, getAdapterPosition());
             }
+        }
+
+        @Override
+        public boolean onLongClick(View v) {
+            if (listener != null) {
+                listener.itemLongClick(v, getAdapterPosition());
+            }
+            return true;
         }
     }
 

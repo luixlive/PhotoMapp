@@ -15,6 +15,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.ActionMode;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
@@ -24,17 +27,20 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.AdaptadorListaFotos;
+import com.photomapp.luisalfonso.photomapp.Fragments.DialogoMostrarFoto;
 import com.photomapp.luisalfonso.photomapp.R;
+import com.photomapp.luisalfonso.photomapp.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Clase ActivityMapa: muestra un mapa y las fotos que el usuraio a tomado. Al pulsar una foto el mapa muestra
  * donde se la tomó. Implementa la interfaz OnMapReadyCallback para obtener eventos del GoogleMap.
  */
-public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallback {
+public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallback, ActionMode.Callback {
 
     //Etiqueta para la escritura al LOG
     private static final String LOG_TAG = "ACTIVITY MAPA";
@@ -43,6 +49,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private static final int PERMISO_ACCESO_UBICACION = 1;
     private static final float ZOOM_MAPA = 18.0f;
     private static final int TIEMPO_ANIMACION_MAPA = 1000 * 3;
+    private static final int IMAGEN_NO_SELECCIONADA = -1;
 
     //Mapa y lista con los ids de las fotos para inicizliar el adaptador del RecyclerView
     private GoogleMap mapa;
@@ -52,6 +59,14 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private boolean lectura_posible;
     private boolean acceso_ubicacion = true;
 
+    //Variable que indica cual fue la ultima imagen pulsada por el usuario
+    private int imagen_seleccionada = IMAGEN_NO_SELECCIONADA;
+
+    //Variables de apoyo para la seleccion de imagenes y el modo de context menu
+    private AdaptadorListaFotos adaptador;
+    private ActionMode modo_contextual;
+    private boolean eliminar_pulsado = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,6 +74,57 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
 
         iniciarListaSiEsPosible();
         iniciarMapa();
+    }
+
+    @Override
+    public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+        //Inicio del modo contextual
+        getMenuInflater().inflate(R.menu.menu_contextual_activity_mapa, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+        return false;
+    }
+
+    @Override
+    public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.borrar:
+                //Si se pulso borrar, se eliminan las imagenes de la base de datos y de la lista
+                String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+                String[] args = new String[1];
+                List<Integer> selectedItemPositions = adaptador.obtenerItemsSelecionados();
+                for (int i = selectedItemPositions.size() - 1; i >= 0; i--) {
+                    adaptador.eliminarImagenesLista(selectedItemPositions.get(i));
+                    args[0] = String.valueOf(ids_fotos.get(selectedItemPositions.get(i)));
+                    getContentResolver().delete(
+                            ContratoPhotoMapp.Fotos.CONTENT_URI,
+                            clause,
+                            args
+                    );
+                    ids_fotos.remove((int) selectedItemPositions.get(i));
+                }
+                eliminar_pulsado = true;
+
+                modo_contextual.finish();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    public void onDestroyActionMode(ActionMode mode) {
+        //Cierre del modo contextual
+        this.modo_contextual = null;
+        //Si se pulso eliminar, no limpiamos las selecciones, pues ya estan limpias
+        if (!eliminar_pulsado) {
+            adaptador.borrarSelecciones();
+        } else{
+            eliminar_pulsado = false;
+        }
     }
 
     /**
@@ -156,37 +222,90 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             arreglo_nombres_imagenes[i] = nombres_imagenes.get(i);
         }
         //Le pasamos al adaptador los nombres para que vaya y busque las imagenes y las ponga en la lista de fotos
-        AdaptadorListaFotos adaptador = new AdaptadorListaFotos(this, arreglo_nombres_imagenes);
+        adaptador = new AdaptadorListaFotos(this, arreglo_nombres_imagenes);
         lista_fotos.setAdapter(adaptador);
         //Si se da click en una imagen, se actualiza la ubicacion del mapa de acuerdo a los datos de la base de datos
-        adaptador.setOnItemClickListener(new AdaptadorListaFotos.OnItemClickListener() {
+        adaptador.setOnItemClickListener(new AdaptadorListaFotos.EventosAdaptadorListener() {
             @Override
-            public void onItemClick(View view, int position) {
-                String[] projection = {
-                        ContratoPhotoMapp.Fotos.COLUMNA_LATITUD,
-                        ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD,
-                };
-                String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+            public void itemClick(View view, int position) {
+                if (modo_contextual == null) {
+                    //Si no esta en modo contextual, al hacer click en una imagen se muestra en el mapa donde se tomo, o
+                    //si es la segunda vez que se pulsa, se muestra en un dialogo con su informacion
+                    String[] projection = {
+                            ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE,
+                            ContratoPhotoMapp.Fotos.COLUMNA_FECHA,
+                            ContratoPhotoMapp.Fotos.COLUMNA_LATITUD,
+                            ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD
+                    };
+                    String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
 
-                //Se obtiene el id de la foto de esa posicion y se hace el query para obtener latitud y longitud
-                String[] args = {String.valueOf(ids_fotos.get(position))};
-                Cursor cursor = getContentResolver().query(ContratoPhotoMapp.Fotos.CONTENT_URI, projection, clause, args, null);
-                if (cursor == null) {
-                    Log.e(LOG_TAG, "Se retorno un cursor nulo del query al ContentProvider");
-                } else if (cursor.getCount() < 1) {
-                    cursor.close();
-                    Log.wtf(LOG_TAG, "No se encontro la foto con el ContentProvider");
+                    //Se obtiene el id de la foto de esa posicion y se hace el query para obtener latitud y longitud
+                    String[] args = {String.valueOf(ids_fotos.get(position))};
+                    Cursor cursor = getContentResolver().query(ContratoPhotoMapp.Fotos.CONTENT_URI, projection, clause, args, null);
+                    if (cursor == null) {
+                        Log.e(LOG_TAG, "Se retorno un cursor nulo del query al ContentProvider");
+                    } else if (cursor.getCount() < 1) {
+                        cursor.close();
+                        Log.wtf(LOG_TAG, "No se encontro la foto con el ContentProvider");
+                    } else if (imagen_seleccionada == position) {
+                        //Si es la segunda vez que se pulsa la imagen, se muestra el dialogo de la imagen, fecha y ubicacion
+                        imagen_seleccionada = IMAGEN_NO_SELECCIONADA;
+                        mapa.stopAnimation();
+                        cursor.moveToFirst();
+                        String nombre_foto = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
+                        String fecha_foto = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_FECHA));
+                        Double latitud = cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LATITUD));
+                        Double longitud = cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD));
+
+                        DialogoMostrarFoto dialogo_nombre_foto = DialogoMostrarFoto.nuevoDialogo(nombre_foto, fecha_foto,
+                                Util.obtenerNombreCiudad(getApplicationContext(), latitud, longitud));
+                        dialogo_nombre_foto.show(getFragmentManager(), DialogoMostrarFoto.class.getName());
+                        cursor.close();
+                    } else {
+                        //Si es la primera vez que se pulsa la imagen, actualiza la posicion del mapa con la ubicacion obtenida
+                        imagen_seleccionada = position;
+                        cursor.moveToFirst();
+                        LatLng ubicacion_foto = new LatLng(cursor.getDouble(cursor.getColumnIndex(
+                                ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
+                                cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
+                        actualizarUbicacion(ubicacion_foto);
+                        cursor.close();
+                    }
                 } else {
-                    //Se actualiza la posicion del mapa con la ubicacion obtenida
-                    cursor.moveToFirst();
-                    LatLng ubicacion_foto = new LatLng(cursor.getDouble(cursor.getColumnIndex(
-                            ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
-                            cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
-                    actualizarUbicacion(ubicacion_foto);
-                    cursor.close();
+                    //Si esta en modo contextual, el click solo cambia el estado de seleccion de la imagen
+                    ActivityMapa.this.cambiarEstadoSeleccion(position);
                 }
             }
+
+            @Override
+            public void itemLongClick(View view, int position){
+                //Si el modo contextual no se ha iniciado, se comienza
+                if (modo_contextual != null) {
+                    adaptador.cambiarEstadoSeleccion(position);
+                    return;
+                }
+                modo_contextual = startActionMode(ActivityMapa.this);
+                cambiarEstadoSeleccion(position);
+            }
         });
+    }
+
+    /**
+     * cambiarEstadoSeleccion: cambia el estado de seleccion de la imagen de la posicion establecida, y si el numero
+     * de imagenes seleccionadas es cero, cierra el modo contextual. Si el numero de imagenes es exactamente uno,
+     * muestra el boton editar en el menu contextual para editar el nombre de la imagen.
+     * @param posicion int del index de la imagen
+     */
+    private void cambiarEstadoSeleccion(int posicion) {
+        adaptador.cambiarEstadoSeleccion(posicion);
+        int numero_selecciones = adaptador.obtenerNumeroItemsSeleccionados();
+        if (numero_selecciones == 0) {
+            modo_contextual.finish();
+        } else if( numero_selecciones == 1){
+            modo_contextual.getMenu().findItem(R.id.editar).setVisible(true);
+        } else {
+            modo_contextual.getMenu().findItem(R.id.editar).setVisible(false);
+        }
     }
 
     /**

@@ -24,7 +24,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.model.LatLng;
-import com.photomapp.luisalfonso.photomapp.DialogoNombreFoto;
+import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
 import com.photomapp.luisalfonso.photomapp.ManejadorCamara;
 import com.photomapp.luisalfonso.photomapp.ManejadorUbicacion;
 import com.photomapp.luisalfonso.photomapp.R;
@@ -68,6 +68,7 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
     //Variable apoyo para obtencion de la ubicacion
     private ManejadorUbicacion manejador_ubicacion;
 
+    //Variables de apoyo para el manejo de la camara en el TextureView y la captura
     private ManejadorCamara manejador_camara;
     private Image foto_tomada;
 
@@ -97,6 +98,8 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
         //Se obtienen las preferencias de usuario y se comienza a actualizar la ubicacion
         SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
         autonombrar_fotos = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_AUTONOMBRAR_FOTO_KEY, false);
+        manejador_camara.cambiarPreferenciaFlash(preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_FLASH_KEY,
+                false));
         manejador_ubicacion.comenzarActualizacionUbicacion();
     }
 
@@ -157,8 +160,8 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
             lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
 
             GuardadorImagen guardador = new GuardadorImagen(new File(archivo + File.separator + nombre +
-                    EXTENSION_ARCHIVO_FOTO), nombre,Util.obtenerFecha("dd-MM-yyyy"), lat_y_long.latitude,
-                    lat_y_long.longitude);
+                    EXTENSION_ARCHIVO_FOTO), nombre,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
+                    lat_y_long.latitude, lat_y_long.longitude);
             guardador.execute(foto_tomada);
         } else{
             Toast.makeText(ActivityPrincipal.this, getString(R.string.no_hay_ubicacion), Toast.LENGTH_SHORT).show();
@@ -178,6 +181,39 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
      */
     public void foto(View boton_camara) {
         manejador_camara.foto();
+    }
+
+    @Override
+    public void fotoTomada(Image foto) {
+        foto_tomada = foto;
+        if (escritura_posible) {
+            //Obtenemos la imagen y el nombre por default
+            String nombre_foto = Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha)) +
+                    getString(R.string.app_name);
+
+            //Si elegio autonombrar fotos en preferencias se pone el nombre por default
+            if (autonombrar_fotos) {
+                Toast.makeText(ActivityPrincipal.this, getString(R.string.toast_foto_tomada), Toast.LENGTH_SHORT).show();
+                Location ubicacion = manejador_ubicacion.obtenerUbicacion();
+                LatLng lat_y_long;
+                if (ubicacion != null) {
+                    lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
+                    GuardadorImagen guardador = new GuardadorImagen(new File(archivo + File.separator + nombre_foto +
+                            EXTENSION_ARCHIVO_FOTO), nombre_foto,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
+                            lat_y_long.latitude, lat_y_long.longitude);
+                    guardador.execute(foto_tomada);
+                }
+                manejador_camara.fotoTerminada();
+            }
+            //Si no eligio autonombrar se le muestra un dialogo para que elija el nombre de la foto
+            else {
+                DialogoNombreFoto dialogo_nombre_foto = DialogoNombreFoto.nuevoDialogo(nombre_foto);
+                dialogo_nombre_foto.show(getFragmentManager(), DialogoNombreFoto.class.getName());
+            }
+        } else {
+            Toast.makeText(ActivityPrincipal.this, ActivityPrincipal.this.getString(R.string.no_escritura_posible),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -212,38 +248,6 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
 
     public boolean permisoAccesoCamara(){
         return permiso_acceso_camara;
-    }
-
-    @Override
-    public void fotoTomada(Image foto) {
-        foto_tomada = foto;
-        if (escritura_posible) {
-            //Obtenemos la imagen y el nombre por default
-            String nombre_foto = Util.obtenerFecha("ddMMyyyyHHmmss") + getString(R.string.app_name);
-
-            //Si elegio autonombrar fotos en preferencias se pone el nombre por default
-            if (autonombrar_fotos) {
-                Toast.makeText(ActivityPrincipal.this, getString(R.string.toast_foto_tomada), Toast.LENGTH_SHORT).show();
-                Location ubicacion = manejador_ubicacion.obtenerUbicacion();
-                LatLng lat_y_long;
-                if (ubicacion != null) {
-                    lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
-                    GuardadorImagen guardador = new GuardadorImagen(new File(archivo + File.separator + nombre_foto +
-                            EXTENSION_ARCHIVO_FOTO), nombre_foto,Util.obtenerFecha("dd-MM-yyyy"), lat_y_long.latitude,
-                            lat_y_long.longitude);
-                    guardador.execute(foto_tomada);
-                }
-                manejador_camara.fotoTerminada();
-            }
-            //Si no eligio autonombrar se le muestra un dialogo para que elija el nombre de la foto
-            else {
-                DialogoNombreFoto dialogo_nombre_foto = DialogoNombreFoto.nuevoDialogo(nombre_foto);
-                dialogo_nombre_foto.show(getFragmentManager(), DialogoNombreFoto.class.getName());
-            }
-        } else {
-            Toast.makeText(ActivityPrincipal.this, ActivityPrincipal.this.getString(R.string.no_escritura_posible),
-                    Toast.LENGTH_SHORT).show();
-        }
     }
 
     /**

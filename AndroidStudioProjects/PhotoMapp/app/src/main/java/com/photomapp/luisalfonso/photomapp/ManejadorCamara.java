@@ -75,6 +75,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     private CaptureRequest.Builder constructor_imagen_preview;
     private CameraCaptureSession sesion_captura_imagen;
     private boolean soporta_flash;
+    private boolean preferencia_usuario_flash = false;
     private Semaphore semaforo_abrir_cerrar_camara = new Semaphore(1);
     private CaptureRequest solicitud_foto;
     private CameraDevice.StateCallback estado_camara_listener = new CameraDevice.StateCallback() {
@@ -223,7 +224,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     }
 
     /**
-     * iniciar: Abre y configura la camara e inicia el streaming.
+     * iniciar: Abre
      */
     public void iniciar(){
         iniciarHiloBackground();
@@ -234,31 +235,19 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         }
     }
 
-    /**
-     * foto: Se toma una foto y se envia el resultado al listener (el contenedor mostrara la foto hasta llamar fotoTerminada).
-     */
     public void foto(){
         enfocar();
     }
 
-    /**
-     * fotoTerminada: Se vuelve al estado preview.
-     */
     public void fotoTerminada(){
         dejarDeEnfocar();
     }
 
-    /**
-     * terminar: Cierra la camara y termina los procesos en background.
-     */
     public void terminar(){
         cerrarCamara();
         terminarHiloBackground();
     }
 
-    /**
-     * Interfaz TomarFotoListener: Sirve para enviar resultados de las fotos por medio de un callback.
-     */
     public interface TomarFotoListener {
         void fotoTomada(Image foto);
     }
@@ -513,7 +502,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
      * @param constructor_request el constructor que se va  aconfigurar como autoflash
      */
     private void configurarAutoFlash(CaptureRequest.Builder constructor_request) {
-        if (soporta_flash)
+        if (soporta_flash && preferencia_usuario_flash)
             constructor_request.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
     }
 
@@ -538,6 +527,10 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public void cambiarPreferenciaFlash(boolean usar_flash){
+        preferencia_usuario_flash = usar_flash;
     }
 
     /**

@@ -11,10 +11,11 @@ import com.photomapp.luisalfonso.photomapp.R;
  */
 public class ActivityPreferencias extends AppCompatActivity {
 
-    //Macro
+    //Macros
+    //Mantener sincronizados los nombres de los keys con el archivo Strings
+    public static final String PREFERENCIA_UTILIZAR_FLASH_KEY = "usar_flash";
     public static final String PREFERENCIA_UTILIZAR_GPS_KEY = "utilizar_gps";
-    public static final String PREFERENCIA_AUTONOMBRAR_FOTO_KEY = "autonombrar_fotos";  //Mantener sincronizada esta variable en
-                                                                                        //el archivo de Strings
+    public static final String PREFERENCIA_AUTONOMBRAR_FOTO_KEY = "autonombrar_fotos";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

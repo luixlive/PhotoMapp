@@ -1,13 +1,18 @@
 package com.photomapp.luisalfonso.photomapp;
 
 import android.content.ContentResolver;
+import android.content.Context;
 import android.database.Cursor;
+import android.location.Address;
+import android.location.Geocoder;
 import android.util.Log;
 
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -23,6 +28,27 @@ public class Util {
     public static String obtenerFecha(String formato){
         SimpleDateFormat formato_fecha = new SimpleDateFormat(formato, Locale.US);
         return formato_fecha.format(Calendar.getInstance().getTime());
+    }
+
+    /**
+     * obtenerNombreCiudad: regresa el nombre de la ciudad ubicada en las coordenadas indicadas.
+     * @param context Context de la aplicacion de donde se llama.
+     * @param latitud double latitud de la ubicacion.
+     * @param longitud double longitud de la ubicacion.
+     * @return String con el nombre de la ciudad.
+     */
+    public static String obtenerNombreCiudad(Context context, double latitud, double longitud){
+        //Usamos la clase Geocoder para obtener un objeto Address
+        Geocoder localizador = new Geocoder(context);
+        String ciudad = null;
+        try {
+            //Leemos la locacion de la direccion
+            List<Address> lista_direccion = localizador.getFromLocation(latitud, longitud, 1);
+            ciudad = lista_direccion.get(0).getLocality();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return ciudad;
     }
 
     /**

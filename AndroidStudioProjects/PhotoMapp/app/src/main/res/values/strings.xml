@@ -9,12 +9,20 @@
     <string name="toast_foto_tomada">Guardada</string>
     <string name="toast_foto_no_tomada">No se pudo guardar :(</string>
 
-    <string name="descripcion_foto">Vista donde que utiliza el adaptador para mostrar las fotos.</string>
+    <string name="descripcion_foto_grande">Vista que utiliza el fragment para mostrar la foto seleccionada.</string>
+    <string name="descripcion_foto">Vista que utiliza el adaptador para mostrar las fotos.</string>
     <string name="nombre_hilo_camara">Hilo Camara</string>
 
+    <string name="preferencias_categoria_fotografias">Fotografías</string>
+    <string name="preferencias_categoria_fotografias_key">categoria_fotografias</string>
+    <string name="preferencias_categoria_ubicacion">Ubicación</string>
+    <string name="preferencias_categoria_ubicacion_key">categoria_ubicacion</string>
     <string name="preferencia_autonombrar_fotos_key">autonombrar_fotos</string>
     <string name="preferencia_autonombrar_fotos_titulo">Autonombrar Fotos</string>
     <string name="preferencia_autonombrar_fotos_descripcion">Nombrar tus fotos de acuerdo a la fecha actual</string>
+    <string name="preferencia_flash_key">usar_flash</string>
+    <string name="preferencia_flash_titulo">Activar Flash Automático</string>
+    <string name="preferencia_flash_descripcion">Usar flash si se detecta un ambiente oscuro</string>
     <string name="preferencia_utilizar_gps_key">utilizar_gps</string>
     <string name="preferencia_utilizar_gps_titulo">Utilizar GPS</string>
     <string name="preferencia_utilizar_gps_descripcion">El GPS dá una ubicación más exacta, pero gasta más batería</string>
@@ -25,4 +33,14 @@
     <string name="titulo_dialogo_nombre_foto">Nombre de la Foto</string>
     <string name="aceptar">Aceptar</string>
     <string name="no_hay_ubicacion">No se encuentra la ubicacion</string>
+
+    <string name="nombre_foto_formato_fecha">ddMMyyyyHHmmss</string>
+    <string name="base_datos_formato_fecha">dd-MM-yyyy</string>
+
+    <string name="texto_ciudad">Ciudad</string>
+    <string name="texto_fecha">Fecha</string>
+
+    <string name="borrar">Borrar</string>
+    <string name="editar">Editar</string>
+
 </resources>

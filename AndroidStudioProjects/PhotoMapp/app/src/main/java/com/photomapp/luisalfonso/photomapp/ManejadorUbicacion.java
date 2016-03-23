@@ -21,8 +21,8 @@ import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
 public class ManejadorUbicacion {
 
     //Macros para actualizacion de ubicacion (cada 20 segundos o cada que el usuario se mueva 20 metros)
-    private static final int TIEMPO_ACTUALIZACION = 1000*20;
-    private static final int DISTANCIA_ACTUALIZACION = 20;
+    private static final int TIEMPO_ACTUALIZACION = 1000*15;
+    private static final int DISTANCIA_ACTUALIZACION = 15;
     private static final int DOS_MINUTOS = 1000*60*2;
 
     //Variables de apoyo
