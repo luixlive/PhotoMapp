@@ -9,7 +9,7 @@
     <string name="toast_foto_tomada">Guardada</string>
     <string name="toast_foto_no_tomada">No se pudo guardar :(</string>
 
-    <string name="descripcion_foto_grande">Vista que utiliza el fragment para mostrar la foto seleccionada.</string>
+    <string name="descripcion_foto_grande">Vista que muestra el zoom de la foto seleccionada.</string>
     <string name="descripcion_foto">Vista que utiliza el adaptador para mostrar las fotos.</string>
     <string name="nombre_hilo_camara">Hilo Camara</string>
 
@@ -43,5 +43,7 @@
     <string name="borrar">Borrar</string>
     <string name="editar">Editar</string>
     <string name="actualizado">Actualizado</string>
+    <string name="texto_direccion">Dirección</string>
+    <string name="texto_hora">Hora</string>
 
 </resources>

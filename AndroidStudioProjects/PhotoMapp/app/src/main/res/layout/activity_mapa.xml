@@ -1,24 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:weightSum="4">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/contenedor"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
-    <fragment xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:tools="http://schemas.android.com/tools"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:id="@+id/map"
-        tools:context=".Activities.ActivityMapa"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
-        android:layout_weight="3" />
+    <LinearLayout android:orientation="vertical" android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:weightSum="4">
 
-    <android.support.v7.widget.RecyclerView
-        android:id="@+id/lista_fotos"
-        android:background="@color/colorPrimary"
-        android:scrollbars="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"/>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="3">
 
-</LinearLayout>
+            <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/map"
+                tools:context=".Activities.ActivityMapa"
+                android:name="com.google.android.gms.maps.SupportMapFragment"/>
+
+            <TextView
+                style="@style/TextoDescripcionImagen"
+                android:text="@string/texto_direccion"
+                android:id="@+id/direccion_imagen"
+                android:layout_alignParentEnd="true" />
+
+            <TextView
+                style="@style/TextoDescripcionImagen"
+                android:text="@string/texto_ciudad"
+                android:id="@+id/ciudad_imagen"
+                android:layout_alignParentEnd="true"
+                android:layout_below="@+id/direccion_imagen" />
+
+            <TextView
+                style="@style/TextoDescripcionImagen"
+                android:text="@string/texto_fecha"
+                android:id="@+id/fecha_imagen"
+                android:layout_below="@+id/ciudad_imagen"
+                android:layout_alignParentEnd="true" />
+        </RelativeLayout>
+
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/lista_fotos"
+            android:background="@color/colorPrimary"
+            android:scrollbars="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+    </LinearLayout>
+
+    <LinearLayout android:orientation="vertical" android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:weightSum="4">
+
+        <ImageView
+            android:id="@+id/imagen_ampliada"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="invisible"
+            android:layout_weight="3"
+            android:contentDescription="@string/descripcion_foto_grande" />
+
+    </LinearLayout>
+
+</FrameLayout>

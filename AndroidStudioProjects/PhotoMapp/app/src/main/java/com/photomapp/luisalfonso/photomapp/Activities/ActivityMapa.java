@@ -1,11 +1,17 @@
 package com.photomapp.luisalfonso.photomapp.Activities;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -20,6 +26,8 @@ import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -28,8 +36,8 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.AdaptadorListaFotos;
-import com.photomapp.luisalfonso.photomapp.Fragments.DialogoMostrarFoto;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
+import com.photomapp.luisalfonso.photomapp.LectorBitmaps;
 import com.photomapp.luisalfonso.photomapp.R;
 import com.photomapp.luisalfonso.photomapp.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
@@ -53,6 +61,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private static final float ZOOM_MAPA = 18.0f;
     private static final int TIEMPO_ANIMACION_MAPA = 1000 * 3;
     private static final int IMAGEN_NO_SELECCIONADA = -1;
+    private static final int RELACION_IMAGEN_ZOOM_PANTALLA = 2;
 
     //Mapa y lista con los ids de las fotos para inicizliar el adaptador del RecyclerView
     private GoogleMap mapa;
@@ -70,9 +79,23 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private ActionMode modo_contextual;
     private boolean eliminar_pulsado = false;
 
+    //Referencia del animador, sirve guardarla por si es necesario cancelarlo
+    private static Animator animador_actual;
+    //Duracion de la animacion en milisegundos
+    private static int duracion_animacion = 0;
+    //Variables necesarias para hacer y quitar zoom
+    private ImageView imagen_ampliada;
+    private Rect contornos_iniciales;
+    private float escala_final_inicial;
+    private View contenedor_pequeno;
+    private boolean hay_zoom = false;
+    private int tamano_imagen_ampliada;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        int pantalla_alto = getResources().getDisplayMetrics().heightPixels;
+        tamano_imagen_ampliada = pantalla_alto/RELACION_IMAGEN_ZOOM_PANTALLA;
         setContentView(R.layout.activity_mapa);
 
         iniciarListaSiEsPosible();
@@ -156,35 +179,22 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     public void nombreSeleccionado(String nombre) {
         if (Util.obtenerEscrituraPosible()) {
             //Se actualiza el nombre en el archivo
-            String nombre_viejo;
-            String projection[] = {
-                    ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE
-            };
-            String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
-            String[] args = {String.valueOf(ids_fotos.get((adaptador.obtenerItemsSelecionados().get(0))))};
-            Cursor cursor = getContentResolver().query(
-                    ContratoPhotoMapp.Fotos.CONTENT_URI,
-                    projection,
-                    clause,
-                    args,
-                    null
-            );
-            if (cursor != null) {
-                if (cursor.moveToFirst()) {
-                    nombre_viejo = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
-                    File carpeta_fotos = Util.obtenerDirectorioFotos();
-                    if (carpeta_fotos != null) {
-                        String ruta = carpeta_fotos.getPath();
-                        File foto_actualizada = new File(ruta + File.separator + nombre_viejo + Util.EXTENSION_ARCHIVO_FOTO);
-                        if (!foto_actualizada.renameTo(new File(ruta + File.separator + nombre + Util.EXTENSION_ARCHIVO_FOTO))){
-                            return;
-                        }
+            String nombre_viejo = Util.obtenerNombreImagen(ids_fotos.get((adaptador.obtenerItemsSelecionados().get(0))),
+                    getContentResolver());
+            if (nombre_viejo != null){
+                File carpeta_fotos = Util.obtenerDirectorioFotos();
+                if (carpeta_fotos != null) {
+                    String ruta = carpeta_fotos.getPath();
+                    File foto_actualizada = new File(ruta + File.separator + nombre_viejo + Util.EXTENSION_ARCHIVO_FOTO);
+                    if (!foto_actualizada.renameTo(new File(ruta + File.separator + nombre + Util.EXTENSION_ARCHIVO_FOTO))){
+                        return;
                     }
                 }
-                cursor.close();
             }
 
             //Se actualiza el nombre en la base de datos
+            String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+            String[] args = {String.valueOf(ids_fotos.get((adaptador.obtenerItemsSelecionados().get(0))))};
             ContentValues nuevos_valores = new ContentValues();
             nuevos_valores.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre);
             int registros_actualizados = getContentResolver().update(
@@ -332,16 +342,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                     } else if (imagen_seleccionada == position) {
                         //Si es la segunda vez que se pulsa la imagen, se muestra el dialogo de la imagen, fecha y ubicacion
                         imagen_seleccionada = IMAGEN_NO_SELECCIONADA;
-                        mapa.stopAnimation();
-                        cursor.moveToFirst();
-                        String nombre_foto = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
-                        String fecha_foto = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_FECHA));
-                        Double latitud = cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LATITUD));
-                        Double longitud = cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD));
-
-                        DialogoMostrarFoto dialogo_nombre_foto = DialogoMostrarFoto.nuevoDialogo(nombre_foto, fecha_foto,
-                                Util.obtenerNombreCiudad(getApplicationContext(), latitud, longitud));
-                        dialogo_nombre_foto.show(getFragmentManager(), DialogoMostrarFoto.class.getName());
+                        hacerZoomImagenLista(position, view.findViewById(R.id.foto));
                         cursor.close();
                     } else {
                         //Si es la primera vez que se pulsa la imagen, actualiza la posicion del mapa con la ubicacion obtenida
@@ -351,6 +352,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                                 ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
                                 cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
                         actualizarUbicacion(ubicacion_foto);
+                        cursor.close();
                         cursor.close();
                     }
                 } else {
@@ -434,4 +436,161 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
     }
+
+    /**
+     * hacerZoomImagenLista: Hace un zoom animado a una imagen de la lista.
+     * @param posicion_imagen_lista int posicion en la lista de la imagen
+     */
+    private void hacerZoomImagenLista(int posicion_imagen_lista, final View contenedor_pequeno) {
+        if(hay_zoom){
+            quitarZoomActual();
+            return;
+        }
+        hay_zoom = true;
+        //Si hay una animacion corriendo, se cancela
+        if (animador_actual != null) {
+            animador_actual.cancel();
+        }
+        //Si aun no se define la duracion de la animacion, se inicializa con los valores del SO
+        if (duracion_animacion == 0){
+            duracion_animacion = getResources().getInteger(android.R.integer.config_shortAnimTime);
+        }
+        this.contenedor_pequeno = contenedor_pequeno;
+
+        //Cargamos la imagen en alta definicion
+        File carpeta_fotos = Util.obtenerDirectorioFotos();
+        if (carpeta_fotos == null) {
+            Log.w(LOG_TAG, "No se encontro el directorio de fotos");
+            return;
+        }
+        String ruta = carpeta_fotos.getPath() + File.separator +
+                Util.obtenerNombreImagen(ids_fotos.get(posicion_imagen_lista), getContentResolver()) + Util.EXTENSION_ARCHIVO_FOTO;
+        imagen_ampliada = (ImageView)findViewById(R.id.imagen_ampliada);
+        imagen_ampliada.setImageBitmap(LectorBitmaps.extraerBitmapEscaladoAlmacenaiento(ruta, tamano_imagen_ampliada));
+
+        //Se calculan los contornos iniciales y finales de la imagen
+        contornos_iniciales = new Rect();
+        final Rect contornos_finales = new Rect();
+        final Point offset = new Point();
+
+        //El contorno inicial es el rectangulo del contenedor de la imagen pequena,
+        //el contorno final es el de la imagen grande y el offset es el origen del contenedor grande
+        contenedor_pequeno.getGlobalVisibleRect(contornos_iniciales);
+        findViewById(R.id.contenedor).getGlobalVisibleRect(contornos_finales, offset);
+        contornos_iniciales.offset(-offset.x, -offset.y);
+        contornos_finales.offset(-offset.x, -offset.y);
+
+        //Se ajustan los bordes para que se mantenga la imagen igual (no se deforme)
+        float escala_inicial;
+        if ((float) contornos_finales.width() / contornos_finales.height()
+                > (float) contornos_iniciales.width() / contornos_iniciales.height()) {
+            //Se extienden los bordes horizontalmente
+            escala_inicial = (float) contornos_iniciales.height() / contornos_finales.height();
+            float ancho_inicial = escala_inicial * contornos_finales.width();
+            float ancho_diferencia = (ancho_inicial - contornos_iniciales.width()) / 2;
+            contornos_iniciales.left -= ancho_diferencia;
+            contornos_iniciales.right += ancho_diferencia;
+        } else {
+            //Se extienden los bordes verticalmente
+            escala_inicial = (float) contornos_iniciales.width() / contornos_finales.width();
+            float alto_inicial = escala_inicial * contornos_finales.height();
+            float alto_diferencia = (alto_inicial - contornos_iniciales.height()) / 2;
+            contornos_iniciales.top -= alto_diferencia;
+            contornos_iniciales.bottom += alto_diferencia;
+        }
+
+        //Escondemos el contenedor pequeno y mostramos el contenedor grande
+        contenedor_pequeno.setAlpha(0f);
+        imagen_ampliada.setVisibility(View.VISIBLE);
+
+        //Ponemos los pivotes de la imagen ampliada en la esquina superior izquierda
+        imagen_ampliada.setPivotX(0f);
+        imagen_ampliada.setPivotY(0f);
+
+        //Construimos y corremos la animacion tanto de expansion como de posicion
+        AnimatorSet set_animacion = new AnimatorSet();
+        set_animacion
+                .play(ObjectAnimator.ofFloat(imagen_ampliada, View.X,
+                        contornos_iniciales.left, contornos_finales.left))
+                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.Y,
+                        contornos_iniciales.top, contornos_finales.top))
+                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_X, escala_inicial, 1f))
+                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_Y, escala_inicial, 1f));
+        set_animacion.setDuration(duracion_animacion);
+        set_animacion.setInterpolator(new DecelerateInterpolator());
+        set_animacion.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                animador_actual = null;
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                animador_actual = null;
+            }
+        });
+        set_animacion.start();
+        animador_actual = set_animacion;
+
+        // Al hacer click en la imagen, se regresa el zoom
+        escala_final_inicial = escala_inicial;
+        imagen_ampliada.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                quitarZoomActual();
+            }
+        });
+    }
+
+    /**
+     * quitarZoomActual: Hace una animacion para remover el zoom a la imagen de la lista donde se aplico.
+     */
+    private void quitarZoomActual(){
+        if (!hay_zoom){
+            return;
+        }
+        hay_zoom = false;
+        if (animador_actual != null) {
+            animador_actual.cancel();
+        }
+
+        //Creamos la animacion
+        AnimatorSet set_animacion = new AnimatorSet();
+        set_animacion
+                .play(ObjectAnimator.ofFloat(imagen_ampliada, View.X, contornos_iniciales.left))
+                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.Y, contornos_iniciales.top))
+                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_X, escala_final_inicial))
+                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_Y, escala_final_inicial));
+        set_animacion.setDuration(duracion_animacion);
+        set_animacion.setInterpolator(new DecelerateInterpolator());
+        set_animacion.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                contenedor_pequeno.setAlpha(1f);
+                imagen_ampliada.setVisibility(View.GONE);
+                animador_actual = null;
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                contenedor_pequeno.setAlpha(1f);
+                imagen_ampliada.setVisibility(View.GONE);
+                animador_actual = null;
+            }
+        });
+        set_animacion.start();
+        animador_actual = set_animacion;
+    }
+
+    @Override
+    public void onBackPressed()
+    {
+        //Si existe un zoom, al presionar back se quita
+        if (hay_zoom){
+            quitarZoomActual();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
 }

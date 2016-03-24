@@ -9,7 +9,6 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import com.photomapp.luisalfonso.photomapp.Activities.ActivityMapa;
-import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -47,7 +46,7 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
         }
 
         //Iniciamos el lector de las imagenes y le pasamos la imagen "cargando"
-        lector_imagenes = LectorBitmaps.obtenerInstancia(activity);
+        lector_imagenes = new LectorBitmaps(activity);
     }
 
     @Override
@@ -66,8 +65,7 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
         contenedor_imagen.setAdjustViewBounds(true);
         contenedor_imagen.setMaxWidth(lector_imagenes.obtenerLongitudImagenLista());
         //Cuando un holder esta listo, se pobla el layout de la imagen con su foto correspondiente
-        lector_imagenes.extraerImagenEn(activity_padre, contenedor_imagen, rutas_fotos.get(position),
-                LectorBitmaps.IMAGEN_LISTA);
+        lector_imagenes.extraerImagenListaEn(activity_padre, contenedor_imagen, rutas_fotos.get(position));
     }
 
     @Override

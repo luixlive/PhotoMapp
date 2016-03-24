@@ -42,20 +42,19 @@ public class Util {
      * @param context Context de la aplicacion de donde se llama.
      * @param latitud double latitud de la ubicacion.
      * @param longitud double longitud de la ubicacion.
-     * @return String con el nombre de la ciudad.
+     * @return Addres con la direccion.
      */
-    public static String obtenerNombreCiudad(Context context, double latitud, double longitud){
+    public static Address obtenerDireccion(Context context, double latitud, double longitud){
         //Usamos la clase Geocoder para obtener un objeto Address
         Geocoder localizador = new Geocoder(context);
-        String ciudad = null;
         try {
-            //Leemos la locacion de la direccion
+            //Regresamos la direccion
             List<Address> lista_direccion = localizador.getFromLocation(latitud, longitud, 1);
-            ciudad = lista_direccion.get(0).getLocality();
+            return lista_direccion.get(0);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return ciudad;
+        return null;
     }
 
     /**
@@ -121,4 +120,28 @@ public class Util {
         }
         return true;
     }
+
+    public static String obtenerNombreImagen(int id, ContentResolver cr){
+        String nombre = null;
+        String projection[] = {
+                ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE
+        };
+        String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+        String[] args = {String.valueOf(id)};
+        Cursor cursor = cr.query(
+                ContratoPhotoMapp.Fotos.CONTENT_URI,
+                projection,
+                clause,
+                args,
+                null
+        );
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                nombre = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
+            }
+            cursor.close();
+        }
+        return nombre;
+    }
+
 }

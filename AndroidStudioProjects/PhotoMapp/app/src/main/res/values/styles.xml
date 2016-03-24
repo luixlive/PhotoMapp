@@ -13,4 +13,12 @@
         <item name="android:windowBackground">@drawable/splash_background</item>
     </style>
 
+    <style name="TextoDescripcionImagen">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">@android:style/TextAppearance.Small</item>
+        <item name="android:layout_gravity">start</item>
+        <item name="android:layout_marginEnd">3dp</item>
+    </style>
+
 </resources>
