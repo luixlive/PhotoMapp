@@ -20,7 +20,7 @@ import java.util.List;
  */
 public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFotos.ContenedorFotos>  {
 
-    //Fotos
+    //Rutas de las fotos
     public ArrayList<String> rutas_fotos = new ArrayList<>();
 
     //Listener para informar cuando se pulsan las imagenes
@@ -45,7 +45,7 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
                     Util.EXTENSION_ARCHIVO_FOTO);
         }
 
-        //Iniciamos el lector de las imagenes y le pasamos la imagen "cargando"
+        //Iniciamos el lector de las imagenes
         lector_imagenes = new LectorBitmaps(activity);
     }
 
@@ -58,12 +58,9 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
 
     @Override
     public void onBindViewHolder(ContenedorFotos holder, int position) {
-        //Limitamos que cada contenedor de las fotos solo pueda ser tan ancho como es de alto
         ImageView contenedor_imagen = holder.obtenerContenedorImagen();
         //Declaramos si esta activado o no (seleccionado) para pintar su background
         contenedor_imagen.setActivated(items_seleccionados.get(position));
-        contenedor_imagen.setAdjustViewBounds(true);
-        contenedor_imagen.setMaxWidth(lector_imagenes.obtenerLongitudImagenLista());
         //Cuando un holder esta listo, se pobla el layout de la imagen con su foto correspondiente
         lector_imagenes.extraerImagenListaEn(activity_padre, contenedor_imagen, rutas_fotos.get(position));
     }
@@ -149,8 +146,7 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
 
     /**
      * Clase ContenedorFotos: Clase auxiliar que utilizamos como ViewHolder pero indicamos los recursos que utilizaaremos
-     * (un ImageView para la foto). Extiende de SwappingHolder, clase que es parte de la libreria de
-     * https://bignerdranch.github.io/recyclerview-multiselect/ y es recomendada para hacer los contenedores seleciconables
+     * (un ImageView para la foto).
      */
     public class ContenedorFotos extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
 
@@ -164,6 +160,7 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
             layout_foto.setOnClickListener(this);
             layout_foto.setOnLongClickListener(this);
         }
+
         public ImageView obtenerContenedorImagen(){
             return contenedor_imagen;
         }

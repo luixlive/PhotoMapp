@@ -45,7 +45,6 @@ public class DialogoNombreFoto extends DialogFragment {
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
-
         //Obtenemos el listener (activity que implementa la interfaz) para enviar informacion a traves de el
         try {
             listener = (NombreSeleccionadoListener)activity;

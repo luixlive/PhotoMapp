@@ -26,21 +26,40 @@
                 style="@style/TextoDescripcionImagen"
                 android:text="@string/texto_direccion"
                 android:id="@+id/direccion_imagen"
-                android:layout_alignParentEnd="true" />
+                android:layout_alignParentEnd="true"
+                android:visibility="invisible"/>
 
             <TextView
                 style="@style/TextoDescripcionImagen"
                 android:text="@string/texto_ciudad"
                 android:id="@+id/ciudad_imagen"
                 android:layout_alignParentEnd="true"
-                android:layout_below="@+id/direccion_imagen" />
+                android:layout_below="@+id/direccion_imagen"
+                android:visibility="invisible" />
 
             <TextView
                 style="@style/TextoDescripcionImagen"
                 android:text="@string/texto_fecha"
                 android:id="@+id/fecha_imagen"
                 android:layout_below="@+id/ciudad_imagen"
-                android:layout_alignParentEnd="true" />
+                android:layout_alignParentEnd="true"
+                android:visibility="invisible" />
+
+            <ImageButton
+                android:layout_width="wrap_content"
+                android:background="@color/invisible"
+                android:layout_height="wrap_content"
+                android:id="@+id/ic_direcciones"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentBottom="true"
+                android:src="@mipmap/ic_direcciones"
+                android:paddingEnd="3dp"
+                android:paddingStart="3dp"
+                android:paddingBottom="3dp"
+                android:visibility="invisible"
+                android:onClick="mostrarDirecciones"
+                android:contentDescription="@string/descripcion_icono_direcciones" />
+
         </RelativeLayout>
 
         <android.support.v7.widget.RecyclerView

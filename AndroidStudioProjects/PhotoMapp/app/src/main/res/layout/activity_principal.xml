@@ -10,8 +10,8 @@
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/boton_camara"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_margin="16dp"
         android:src="@mipmap/ic_camara"

@@ -12,8 +12,10 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.location.Address;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
@@ -28,6 +30,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -67,8 +70,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap mapa;
     private ArrayList<Integer> ids_fotos;
 
-    //Bandera que nos indica si se puede leer en el almacenamiento externo y si el usuario da acceso a su ubicacion
-    private boolean lectura_posible;
+    //Bandera que nos indica si el usuario da acceso a su ubicacion
     private boolean acceso_ubicacion = true;
 
     //Variable que indica cual fue la ultima imagen pulsada por el usuario
@@ -90,6 +92,12 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private View contenedor_pequeno;
     private boolean hay_zoom = false;
     private int tamano_imagen_ampliada;
+    private LatLng ubicacion_actual;
+
+    //Vistas de las leyendas del mapa para cada imagen
+    private TextView fecha_imagen;
+    private TextView ciudad_imagen;
+    private TextView direccion_imagen;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +106,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         tamano_imagen_ampliada = pantalla_alto/RELACION_IMAGEN_ZOOM_PANTALLA;
         setContentView(R.layout.activity_mapa);
 
+        obtenerVistasLeyendas();
         iniciarListaSiEsPosible();
         iniciarMapa();
     }
@@ -133,30 +142,14 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                     ids_fotos.remove((int) posiciones_items_seleccionados.get(i));
                 }
                 eliminar_pulsado = true;
-
+                //Quitamos las leyendas del layout, pues ya no estan actualizadas
+                hacerLeyendasVisibles(false);
                 modo_contextual.finish();
                 return true;
             case R.id.editar:
-                String projection[] = {
-                        ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE
-                };
-                String clause_update = ContratoPhotoMapp.Fotos._ID + " = ?";
-                String[] args_update = {String.valueOf(ids_fotos.get((adaptador.obtenerItemsSelecionados().get(0))))};
-                Cursor cursor = getContentResolver().query(
-                        ContratoPhotoMapp.Fotos.CONTENT_URI,
-                        projection,
-                        clause_update,
-                        args_update,
-                        null
-                );
-                if (cursor != null) {
-                    if (cursor.moveToFirst()) {
-                        DialogoNombreFoto dialogo = DialogoNombreFoto.nuevoDialogo(cursor.getString(
-                                cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE)));
-                        dialogo.show(getFragmentManager(), DialogoNombreFoto.class.getName());
-                    }
-                    cursor.close();
-                }
+                DialogoNombreFoto dialogo = DialogoNombreFoto.nuevoDialogo(Util.obtenerNombreImagen(
+                        ids_fotos.get(adaptador.obtenerItemsSelecionados().get(0)), getContentResolver()));
+                dialogo.show(getFragmentManager(), DialogoNombreFoto.class.getName());
                 return true;
             default:
                 return false;
@@ -165,7 +158,6 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onDestroyActionMode(ActionMode mode) {
-        //Cierre del modo contextual
         this.modo_contextual = null;
         //Si se pulso eliminar, no limpiamos las selecciones, pues ya estan limpias
         if (!eliminar_pulsado) {
@@ -219,17 +211,31 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         //Si el usuario cancela el dialogo para cambiar el nombre, no hay necesidad de hacer nada
     }
 
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        //Obtenemos el mapa
+        mapa = googleMap;
+
+        //Verificamos que el usuario nos de permiso de acceder a su ubicacion y llevamos el mapa a su ultima ubicacion conocida
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISO_ACCESO_UBICACION);
+        }
+        //Llevamos el mapa a la ultima ubicacion conocida del usuario
+        if (acceso_ubicacion) {
+            LocationManager administrador_ubicacion = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+            Location ubicacion = administrador_ubicacion.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            actualizarUbicacion(new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude()));
+        }
+    }
+
     /**
      * iniciarListaSiEsPosible: Si es posible la lectura al almacenamiento, inicia la lista con las fotos
      */
     private void iniciarListaSiEsPosible() {
-        //Recuperamos el intent de la ActivityPrincipa
-        Intent intent = getIntent();
-        //Si la lectura es posible mostramos la lista con fotos
-        if (intent.hasExtra(ActivityPrincipal.EXTRA_LECTURA_POSIBLE)) {
-            lectura_posible = intent.getBooleanExtra(ActivityPrincipal.EXTRA_LECTURA_POSIBLE, false);
-        }
-        if (lectura_posible) {
+        if (Util.obtenerLecturaPosible()) {
             mostrarListaFotos();
         }
     }
@@ -240,6 +246,12 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private void iniciarMapa() {
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+    }
+
+    private void obtenerVistasLeyendas(){
+        fecha_imagen = (TextView)findViewById(R.id.fecha_imagen);
+        ciudad_imagen = (TextView)findViewById(R.id.ciudad_imagen);
+        direccion_imagen = (TextView)findViewById(R.id.direccion_imagen);
     }
 
     /**
@@ -320,11 +332,14 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         adaptador.setOnItemClickListener(new AdaptadorListaFotos.EventosAdaptadorListener() {
             @Override
             public void itemClick(View view, int position) {
+                if (hay_zoom){
+                    quitarZoomActual();
+                    return;
+                }
                 if (modo_contextual == null) {
                     //Si no esta en modo contextual, al hacer click en una imagen se muestra en el mapa donde se tomo, o
                     //si es la segunda vez que se pulsa, se muestra en un dialogo con su informacion
                     String[] projection = {
-                            ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE,
                             ContratoPhotoMapp.Fotos.COLUMNA_FECHA,
                             ContratoPhotoMapp.Fotos.COLUMNA_LATITUD,
                             ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD
@@ -348,11 +363,12 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                         //Si es la primera vez que se pulsa la imagen, actualiza la posicion del mapa con la ubicacion obtenida
                         imagen_seleccionada = position;
                         cursor.moveToFirst();
-                        LatLng ubicacion_foto = new LatLng(cursor.getDouble(cursor.getColumnIndex(
+                        ubicacion_actual = new LatLng(cursor.getDouble(cursor.getColumnIndex(
                                 ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
                                 cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
-                        actualizarUbicacion(ubicacion_foto);
-                        cursor.close();
+                        actualizarUbicacion(ubicacion_actual);
+                        actualizarLeyendasMapa(Util.obtenerDireccion(getApplicationContext(), ubicacion_actual),
+                                cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_FECHA)));
                         cursor.close();
                     }
                 } else {
@@ -363,6 +379,11 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public void itemLongClick(View view, int position){
+                //Si hay zoom quitamos el zoom e ignoramoe el click
+                if (hay_zoom){
+                    quitarZoomActual();
+                    return;
+                }
                 //Si el modo contextual no se ha iniciado, se comienza
                 if (modo_contextual != null) {
                     cambiarEstadoSeleccion(position);
@@ -401,24 +422,32 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(ubicacion, ZOOM_MAPA), TIEMPO_ANIMACION_MAPA, null);
     }
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        //Obtenemos el mapa
-        mapa = googleMap;
+    /**
+     * actualizarLeyendasMapa: Pone los datos de direccion y fecha especificados en las leyendas sobre el mapa.
+     * @param direccion Address con la direccion nueva
+     * @param fecha String con la fecha nueva
+     */
+    private void actualizarLeyendasMapa(Address direccion, String fecha){
+        if (fecha_imagen.getVisibility() == View.INVISIBLE ||
+                ciudad_imagen.getVisibility() == View.INVISIBLE ||
+                direccion_imagen.getVisibility() == View.INVISIBLE){
+            hacerLeyendasVisibles(true);
+        }
+        fecha_imagen.setText(fecha);
+        String ciudad_pais = direccion.getLocality() + ", " + direccion.getCountryName();
+        ciudad_imagen.setText(ciudad_pais);
+        direccion_imagen.setText(direccion.getAddressLine(0));
+    }
 
-        //Verificamos que el usuario nos de permiso de acceder a su ubicacion y llevamos el mapa a su ultima ubicacion conocida
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISO_ACCESO_UBICACION);
-        }
-        //Llevamos el mapa a la ultima ubicacion conocida del usuario
-        if (acceso_ubicacion) {
-            LocationManager administrador_ubicacion = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            Location ubicacion = administrador_ubicacion.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            actualizarUbicacion(new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude()));
-        }
+    /**
+     * hacerLeyendasInvisibles: Hace las leyendas visibles o invisibles
+     * @param visibles boolean indicando si se hacen visibles o invisibles
+     */
+    private void hacerLeyendasVisibles(boolean visibles){
+        fecha_imagen.setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
+        ciudad_imagen.setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
+        direccion_imagen.setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
+        findViewById(R.id.ic_direcciones).setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
     }
 
     @Override
@@ -580,6 +609,20 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         });
         set_animacion.start();
         animador_actual = set_animacion;
+    }
+
+    /**
+     * mostrarDirecciones: Crea un intent para mostrar la direccion actual en otro mapa.
+     * @param view boton mostrar direcciones
+     */
+    public void mostrarDirecciones(View view){
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setData(Uri.parse("geo:" + ubicacion_actual.latitude + "," +
+                ubicacion_actual.longitude + "?q=" + ubicacion_actual.latitude + "," +
+                ubicacion_actual.longitude + "()"));
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivity(intent);
+        }
     }
 
     @Override

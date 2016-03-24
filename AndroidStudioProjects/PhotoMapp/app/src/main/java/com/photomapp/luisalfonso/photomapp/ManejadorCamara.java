@@ -248,6 +248,10 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         terminarHiloBackground();
     }
 
+    /**
+     * Interfaz TomarFotoListener: Debe ser implementada por quien usa el manejador para escuchar
+     * el evento cuando se toma una foto.
+     */
     public interface TomarFotoListener {
         void fotoTomada(Image foto);
     }
@@ -353,7 +357,6 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                             if (null == camara) {
                                 return;
                             }
-
                             sesion_captura_imagen = cameraCaptureSession;
                             actualizarCapturaImagen();
                         }
@@ -529,6 +532,11 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         }
     }
 
+    /**
+     * cambiarPreferenciaFlash: Si el usuario cambia la preferencia de uso de flash, se debe
+     * notificar al manejador por medio de este metodo.
+     * @param usar_flash boolean con la preferencia del usuario.
+     */
     public void cambiarPreferenciaFlash(boolean usar_flash){
         preferencia_usuario_flash = usar_flash;
     }

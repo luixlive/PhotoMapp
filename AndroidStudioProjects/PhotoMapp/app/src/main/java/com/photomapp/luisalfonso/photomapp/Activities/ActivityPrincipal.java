@@ -45,9 +45,6 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
 
     private static final String LOG_TAG = "ACTIVITY PRINCIPAL";
 
-    //Macros publicas para compartir datos entre activities
-    public static final String EXTRA_LECTURA_POSIBLE = "ELP";
-
     //Macros
     public static final int PERMISO_ACCESO_CAMARA = 0;
     public static final int PERMISO_ACCESO_UBICACION = 1;
@@ -59,8 +56,6 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
 
     //Variables para el uso del almacenamiento externo
     private File archivo;
-    private boolean escritura_posible = true;
-    private boolean lectura_posible = true;
 
     //Variable apoyo para obtencion de la ubicacion
     private ManejadorUbicacion manejador_ubicacion;
@@ -77,8 +72,6 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
         //Iniciamos el manejador de la ubicacion, el direcotorio de las fotos y el contenedor de las imagenes
         manejador_ubicacion = new ManejadorUbicacion(this);
         archivo = Util.obtenerDirectorioFotos();
-        escritura_posible = Util.obtenerEscrituraPosible();
-        lectura_posible = Util.obtenerLecturaPosible();
         manejador_camara = new ManejadorCamara(this, (TextureView) findViewById(R.id.contenedor_imagen_camara));
     }
 
@@ -118,9 +111,7 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
                 startActivity(new Intent(this, ActivityPreferencias.class));
                 return true;
             case R.id.mapa:
-                //Informamos a la activity si se puede acceder al almacenamiento externo
                 Intent intent = new Intent(this, ActivityMapa.class);
-                intent.putExtra(EXTRA_LECTURA_POSIBLE, lectura_posible);
                 startActivity(intent);
                 return true;
             default:
@@ -154,9 +145,8 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
     public void nombreSeleccionado(String nombre) {
         //Una vez que el usuario seleccione el nombre, se guarda la imagen y deja de enfocar
         Location ubicacion = manejador_ubicacion.obtenerUbicacion();
-        LatLng lat_y_long;
         if (ubicacion != null) {
-            lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
+            LatLng lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
 
             GuardadorImagen guardador = new GuardadorImagen(new File(archivo + File.separator + nombre +
                     Util.EXTENSION_ARCHIVO_FOTO), nombre,Util.obtenerFecha(getString(R.string.base_datos_formato_fecha)),
@@ -185,10 +175,9 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
     @Override
     public void fotoTomada(Image foto) {
         foto_tomada = foto;
-        if (escritura_posible) {
+        if (Util.obtenerEscrituraPosible()) {
             //Obtenemos la imagen y el nombre por default
-            String nombre_foto = Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha)) +
-                    getString(R.string.app_name);
+            String nombre_foto = Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha)) + getString(R.string.app_name);
 
             //Si elegio autonombrar fotos en preferencias se pone el nombre por default
             if (autonombrar_fotos) {
@@ -215,10 +204,18 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
         }
     }
 
+    /**
+     * ubicacionPermitida: Indica si el usuario permite acceder a su ubicacion.
+     * @return true si es posible acceder a la ubicacion, false de otro modoa
+     */
     public boolean ubicacionPermitida(){
         return permiso_acceso_ubicacion;
     }
 
+    /**
+     * permisoAccesoCamara: Indica si el usuario permite acceder a su camara.
+     * @return true si es posible acceder a la camara, false de otro modoa
+     */
     public boolean permisoAccesoCamara(){
         return permiso_acceso_camara;
     }

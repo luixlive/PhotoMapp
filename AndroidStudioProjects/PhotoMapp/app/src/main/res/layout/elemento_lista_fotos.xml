@@ -9,6 +9,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/foto"
         android:paddingEnd="2dp"
+        android:adjustViewBounds="true"
         android:paddingStart="2dp"
         android:background="@xml/background_fotografias"
         android:contentDescription="@string/descripcion_foto"

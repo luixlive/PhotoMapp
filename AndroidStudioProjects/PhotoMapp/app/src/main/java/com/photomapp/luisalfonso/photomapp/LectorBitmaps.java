@@ -43,7 +43,7 @@ public class LectorBitmaps {
     private LruCache<String, Bitmap> memoria_cache;
 
     //Set de referencias de los bitmaps que se van desechando para reutilizarlos y ahorrar memoria
-    final Set<SoftReference<Bitmap>> bitmaps_desechados;
+    private final Set<SoftReference<Bitmap>> bitmaps_desechados;
 
     /**
      * LectorBitmaps: Constructor. Obtiene el alto de la pantalla y el contenedor de la imagen, y obtiene la imagen cargando que
@@ -80,10 +80,10 @@ public class LectorBitmaps {
     }
 
     /**
-     * obtenerMemoriaCache: Obtiene una memoria cache de 1/8 la memoria disponible para la app.
+     * obtenerMemoriaCache: Obtiene una memoria cache de 1/16 la memoria disponible para la app.
      */
     private void obtenerMemoriaCache() {
-        //Obtenemos la memoria disponible para la app y asignamos un octavo para la cache
+        //Obtenemos la memoria disponible para la app y asignamos un dieciseisavo para la cache
         final int memoria_maxima = (int) (Runtime.getRuntime().maxMemory() / KILO_BYTE);
         final int tamano_cache = memoria_maxima / FRACCION_MEMORIA_CACHE;
         memoria_cache = new LruCache<String, Bitmap>(tamano_cache) {
@@ -101,6 +101,23 @@ public class LectorBitmaps {
     }
 
     /**
+     * extraerBitmapEscaladoAlmacenaiento: Metodo estatico que sirve para extraer cualquier bitmap del
+     * almacenamiento externo escalado, sin embargo lo hace en el hilo actual.
+     * @param ruta_archivo String con la ruta donde se ubica la imagen
+     * @param longitud Longitud mas grande de los lados de la imagen para escalarla
+     * @return Bitmap imagen escalada.
+     */
+    public static Bitmap extraerBitmapEscaladoAlmacenaiento(String ruta_archivo, int longitud){
+        final BitmapFactory.Options opciones_imagen = new BitmapFactory.Options();
+        opciones_imagen.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
+        opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen, longitud, longitud);
+        opciones_imagen.inJustDecodeBounds = false;
+
+        return BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
+    }
+
+    /**
      * extraerImagenEn: Extrae el bitmap de la ruta especificada con el tamano necesario para situarlo en el contenedor que
      * se especifique, de forma optima para el ahorro de recursos.
      * @param activity contexto donde se ubica el contenedor.
@@ -109,7 +126,7 @@ public class LectorBitmaps {
      */
     public void extraerImagenListaEn(Activity activity, ImageView contenedor_imagen, String ruta){
         if (cancelarExtractorInnecesario(ruta, contenedor_imagen)) {
-            final Bitmap bitmap = obtenerBitmapDeCache(ruta);
+            final Bitmap bitmap = memoria_cache.get(ruta);
             if (bitmap != null) {
                 contenedor_imagen.setImageBitmap(bitmap);
             } else {
@@ -184,17 +201,6 @@ public class LectorBitmaps {
         return resultado;
     }
 
-    public static Bitmap extraerBitmapEscaladoAlmacenaiento(String ruta_archivo, int longitud){
-        final BitmapFactory.Options opciones_imagen = new BitmapFactory.Options();
-        opciones_imagen.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
-
-        opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen, longitud, longitud);
-        opciones_imagen.inJustDecodeBounds = false;
-
-        return BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
-    }
-
     /**
      * calcularFactorEscala: calcula de acuerdo al tamano necesario de la imagen, el factor conveniente de escalado de la imagen
      * para ahorrar memoria.
@@ -216,34 +222,6 @@ public class LectorBitmaps {
             }
         }
         return tamano_escala;
-    }
-
-    /**
-     * obtenerLongitudImagenLista: Retorna la longitud de los lados del contenedor donde van las imagenes de la lista.
-     * @return entero con la longitud.
-     */
-    public int obtenerLongitudImagenLista(){
-        return longitud_lado_img_lista;
-    }
-
-    /**
-     * agregarBitmapACache: Agrega una imagen a la cache de la app.
-     * @param key String que representara a esta imagen
-     * @param bitmap Bitmap de la imagen a guardar
-     */
-    public void agregarBitmapACache(String key, Bitmap bitmap) {
-        if (obtenerBitmapDeCache(key) == null) {
-            memoria_cache.put(key, bitmap);
-        }
-    }
-
-    /**
-     * obtenerBitmapDeCache: Regresa una imagen almacenada en la memoria cache
-     * @param key String qure representa a la imagen buscada
-     * @return Bitmap de la imagen o null si no esta en la cache
-     */
-    public Bitmap obtenerBitmapDeCache(String key) {
-        return memoria_cache.get(key);
     }
 
     /**
@@ -333,7 +311,10 @@ public class LectorBitmaps {
             if (imagen == null){
                 return null;
             }
-            agregarBitmapACache(ruta, imagen);
+            //Agregamos la imagen a cache
+            if (memoria_cache.get(ruta) == null) {
+                memoria_cache.put(ruta, imagen);
+            }
             return imagen;
         }
 

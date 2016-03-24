@@ -1,26 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
     <PreferenceCategory
         android:title="@string/preferencias_categoria_fotografias"
         android:key="@string/preferencias_categoria_fotografias_key">
+
         <CheckBoxPreference
             android:key="@string/preferencia_flash_key"
             android:title="@string/preferencia_flash_titulo"
             android:summary="@string/preferencia_flash_descripcion"
             android:defaultValue="true" />
+
         <CheckBoxPreference
             android:key="@string/preferencia_autonombrar_fotos_key"
             android:title="@string/preferencia_autonombrar_fotos_titulo"
             android:summary="@string/preferencia_autonombrar_fotos_descripcion"
             android:defaultValue="true" />
+
     </PreferenceCategory>
+
     <PreferenceCategory
         android:title="@string/preferencias_categoria_ubicacion"
         android:key="@string/preferencias_categoria_ubicacion_key">
+
         <CheckBoxPreference
             android:key="@string/preferencia_utilizar_gps_key"
             android:title="@string/preferencia_utilizar_gps_titulo"
             android:summary="@string/preferencia_utilizar_gps_descripcion"
             android:defaultValue="true" />
+
     </PreferenceCategory>
+
 </PreferenceScreen>

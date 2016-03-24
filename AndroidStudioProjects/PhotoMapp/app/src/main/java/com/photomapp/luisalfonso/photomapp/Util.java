@@ -8,6 +8,7 @@ import android.location.Geocoder;
 import android.os.Environment;
 import android.util.Log;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 
 import java.io.File;
@@ -38,15 +39,16 @@ public class Util {
     }
 
     /**
-     * obtenerNombreCiudad: regresa el nombre de la ciudad ubicada en las coordenadas indicadas.
+     * obtenerNombreCiudad: regresa la direccion de la bicacion especificada.
      * @param context Context de la aplicacion de donde se llama.
-     * @param latitud double latitud de la ubicacion.
-     * @param longitud double longitud de la ubicacion.
-     * @return Addres con la direccion.
+     * @param ubicacion LatLng de la ubicacion
+     * @return Address con la direccion.
      */
-    public static Address obtenerDireccion(Context context, double latitud, double longitud){
+    public static Address obtenerDireccion(Context context, LatLng ubicacion){
         //Usamos la clase Geocoder para obtener un objeto Address
         Geocoder localizador = new Geocoder(context);
+        double latitud = ubicacion.latitude;
+        double longitud = ubicacion.longitude;
         try {
             //Regresamos la direccion
             List<Address> lista_direccion = localizador.getFromLocation(latitud, longitud, 1);
@@ -87,9 +89,8 @@ public class Util {
      * @return File con el archivo donde se almacenan las fotos, si no es posible leer ni guardar regresa null
      */
     public static File obtenerDirectorioFotos() {
-        String estado_almacenamiento = Environment.getExternalStorageState();
         //Guardamos en sus variables respectivas si podemos escribir y leer del almacenamiento
-        if (Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)) {
+        if (obtenerEscrituraPosible()) {
             //Obtenemos el directorio de fotogragias con el nombre de la app
             File directorio = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                     NOMBRE_ALBUM_FOTOS);
@@ -101,6 +102,10 @@ public class Util {
         return null;
     }
 
+    /**
+     * obtenerEscrituraPosible: Se asegura si es posible escribir en el almacenamiento del dispositivo.
+     * @return true si es posible escribir en el almacenamiento, false de otro modo.
+     */
     public static boolean obtenerEscrituraPosible() {
         String estado_almacenamiento = Environment.getExternalStorageState();
         if (Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)){
@@ -110,6 +115,10 @@ public class Util {
         return false;
     }
 
+    /**
+     * obtenerLecturaPosible: Se asegura si es posible leer del almacenamiento del dispositivo.
+     * @return true si es posible leer del almacenamiento, false de otro modo.
+     */
     public static boolean obtenerLecturaPosible() {
         String estado_almacenamiento = Environment.getExternalStorageState();
         if (!Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)) {
@@ -121,6 +130,13 @@ public class Util {
         return true;
     }
 
+    /**
+     * obtenerNombreImagen: Si se quiere obtener el nombre de una imagen de la base de datos y se
+     * tiene el id, este metodo checa el contentProvider y regresa solamente el nombre
+     * @param id int _ID de la imagen en la BD
+     * @param cr ContentResolver valido
+     * @return String nombre de la imagen
+     */
     public static String obtenerNombreImagen(int id, ContentResolver cr){
         String nombre = null;
         String projection[] = {
