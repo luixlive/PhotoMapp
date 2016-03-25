@@ -63,7 +63,7 @@ public class Util {
      * imprimirBD: Imprime la Base de datos en el LOG.
      * @param cr ContentResolver del contexto de donde se llama la funcion
      */
-    public static void imprimirBD(ContentResolver cr){
+    /*public static void imprimirBD(ContentResolver cr){
         String[] projection = {
                 ContratoPhotoMapp.Fotos._ID,
                 ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE,
@@ -81,7 +81,7 @@ public class Util {
             }
             cursor.close();
         }
-    }
+    }*/
 
     /**
      * obtenerDirectorioFotos: verifica que sea posible guardar datos en el almacenamiento externo y regresa el directorio donde
@@ -95,7 +95,7 @@ public class Util {
             File directorio = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                     NOMBRE_ALBUM_FOTOS);
             if (!directorio.mkdirs()) {
-                Log.e(LOG_TAG, "No se pudo crear el directorio.");
+                Log.w(LOG_TAG, "No se pudo crear el directorio.");
             }
             return directorio;
         }

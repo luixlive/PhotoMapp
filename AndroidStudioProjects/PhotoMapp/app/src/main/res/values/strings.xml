@@ -7,7 +7,7 @@
     <string name="permiso_camara_denegado">Sin acceso a la cámara</string>
     <string name="permiso_ubicacion_denegado">Sin acceso a la ubicación</string>
     <string name="captura_imagen_fallida">No se puede obtener imágenes de la cámara</string>
-    <string name="toast_foto_tomada">Guardada</string>
+    <string name="toast_foto_tomada">Guardando</string>
     <string name="toast_foto_no_tomada">No se pudo guardar :(</string>
     <string name="no_escritura_posible">No es posible guardar la foto</string>
     <string name="no_hay_ubicacion">No se encuentra la ubicacion</string>

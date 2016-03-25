@@ -1,17 +1,11 @@
 package com.photomapp.luisalfonso.photomapp.Activities;
 
 import android.Manifest;
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Point;
-import android.graphics.Rect;
 import android.location.Address;
 import android.location.Location;
 import android.location.LocationManager;
@@ -28,8 +22,7 @@ import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.animation.DecelerateInterpolator;
-import android.widget.ImageView;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,8 +32,8 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.AdaptadorListaFotos;
+import com.photomapp.luisalfonso.photomapp.Animacion;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
-import com.photomapp.luisalfonso.photomapp.LectorBitmaps;
 import com.photomapp.luisalfonso.photomapp.R;
 import com.photomapp.luisalfonso.photomapp.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
@@ -81,17 +74,6 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private ActionMode modo_contextual;
     private boolean eliminar_pulsado = false;
 
-    //Referencia del animador, sirve guardarla por si es necesario cancelarlo
-    private static Animator animador_actual;
-    //Duracion de la animacion en milisegundos
-    private static int duracion_animacion = 0;
-    //Variables necesarias para hacer y quitar zoom
-    private ImageView imagen_ampliada;
-    private Rect contornos_iniciales;
-    private float escala_final_inicial;
-    private View contenedor_pequeno;
-    private boolean hay_zoom = false;
-    private int tamano_imagen_ampliada;
     private LatLng ubicacion_actual;
 
     //Vistas de las leyendas del mapa para cada imagen
@@ -99,12 +81,14 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private TextView ciudad_imagen;
     private TextView direccion_imagen;
 
+    //Objeto Animacion para apoyar con las animaciones
+    private Animacion animador;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        int pantalla_alto = getResources().getDisplayMetrics().heightPixels;
-        tamano_imagen_ampliada = pantalla_alto/RELACION_IMAGEN_ZOOM_PANTALLA;
         setContentView(R.layout.activity_mapa);
+        animador = new Animacion(getResources().getInteger(android.R.integer.config_shortAnimTime));
 
         obtenerVistasLeyendas();
         iniciarListaSiEsPosible();
@@ -231,6 +215,15 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    @Override
+    public void onBackPressed()
+    {
+        //Si existe un zoom, al presionar back se quita
+        if (!animador.quitarZoomActual()){
+            super.onBackPressed();
+        }
+    }
+
     /**
      * iniciarListaSiEsPosible: Si es posible la lectura al almacenamiento, inicia la lista con las fotos
      */
@@ -248,6 +241,9 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
     }
 
+    /**
+     * obtenerVistasLeyendas: Procedimiento para recuperar las vistas de las 3 leyendas del mapa
+     */
     private void obtenerVistasLeyendas(){
         fecha_imagen = (TextView)findViewById(R.id.fecha_imagen);
         ciudad_imagen = (TextView)findViewById(R.id.ciudad_imagen);
@@ -332,8 +328,8 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         adaptador.setOnItemClickListener(new AdaptadorListaFotos.EventosAdaptadorListener() {
             @Override
             public void itemClick(View view, int position) {
-                if (hay_zoom){
-                    quitarZoomActual();
+                //Si hay un zoom simplemente lo quitamos
+                if (animador.quitarZoomActual()){
                     return;
                 }
                 if (modo_contextual == null) {
@@ -357,7 +353,14 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                     } else if (imagen_seleccionada == position) {
                         //Si es la segunda vez que se pulsa la imagen, se muestra el dialogo de la imagen, fecha y ubicacion
                         imagen_seleccionada = IMAGEN_NO_SELECCIONADA;
-                        hacerZoomImagenLista(position, view.findViewById(R.id.foto));
+                        int pantalla_alto = getResources().getDisplayMetrics().heightPixels;
+                        int tamano_imagen_ampliada = pantalla_alto/RELACION_IMAGEN_ZOOM_PANTALLA;
+
+                        String ruta = Util.obtenerDirectorioFotos().getPath() + File.separator +
+                                Util.obtenerNombreImagen(ids_fotos.get(position), getContentResolver()) +
+                                Util.EXTENSION_ARCHIVO_FOTO;
+                        animador.hacerZoomImagenLista(ruta, view.findViewById(R.id.foto),
+                                findViewById(R.id.imagen_ampliada), tamano_imagen_ampliada);
                         cursor.close();
                     } else {
                         //Si es la primera vez que se pulsa la imagen, actualiza la posicion del mapa con la ubicacion obtenida
@@ -367,12 +370,13 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                                 ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
                                 cursor.getDouble(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
                         actualizarUbicacion(ubicacion_actual);
-                        actualizarLeyendasMapa(Util.obtenerDireccion(getApplicationContext(), ubicacion_actual),
+                        actualizarLeyendasMapa(
+                                Util.obtenerDireccion(getApplicationContext(), ubicacion_actual),
                                 cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_FECHA)));
                         cursor.close();
                     }
                 } else {
-                    //Si esta en modo contextual, el click solo cambia el estado de seleccion de la imagen
+                    //Si esta en modo contextual, el click solo cambia el estado de seleccion
                     ActivityMapa.this.cambiarEstadoSeleccion(position);
                 }
             }
@@ -380,8 +384,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void itemLongClick(View view, int position){
                 //Si hay zoom quitamos el zoom e ignoramoe el click
-                if (hay_zoom){
-                    quitarZoomActual();
+                if (animador.quitarZoomActual()){
                     return;
                 }
                 //Si el modo contextual no se ha iniciado, se comienza
@@ -396,9 +399,10 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * cambiarEstadoSeleccion: cambia el estado de seleccion de la imagen de la posicion establecida, y si el numero
-     * de imagenes seleccionadas es cero, cierra el modo contextual. Si el numero de imagenes es exactamente uno,
-     * muestra el boton editar en el menu contextual para editar el nombre de la imagen.
+     * cambiarEstadoSeleccion: cambia el estado de seleccion de la imagen de la posicion
+     * establecida, y si el numero de imagenes seleccionadas es cero, cierra el modo contextual.
+     * Si el numero de imagenes es exactamente uno,muestra el boton editar en el menu contextual
+     * para editar el nombre de la imagen.
      * @param posicion int del index de la imagen
      */
     private void cambiarEstadoSeleccion(int posicion) {
@@ -419,11 +423,13 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
      */
     private void actualizarUbicacion(LatLng ubicacion) {
         if (ubicacion != null)
-            mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(ubicacion, ZOOM_MAPA), TIEMPO_ANIMACION_MAPA, null);
+            mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(ubicacion, ZOOM_MAPA),
+                    TIEMPO_ANIMACION_MAPA, null);
     }
 
     /**
-     * actualizarLeyendasMapa: Pone los datos de direccion y fecha especificados en las leyendas sobre el mapa.
+     * actualizarLeyendasMapa: Pone los datos de direccion y fecha especificados en las leyendas
+     * sobre el mapa.
      * @param direccion Address con la direccion nueva
      * @param fecha String con la fecha nueva
      */
@@ -444,171 +450,37 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
      * @param visibles boolean indicando si se hacen visibles o invisibles
      */
     private void hacerLeyendasVisibles(boolean visibles){
-        fecha_imagen.setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
-        ciudad_imagen.setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
-        direccion_imagen.setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
-        findViewById(R.id.ic_direcciones).setVisibility(visibles ? View.VISIBLE: View.INVISIBLE);
+        ImageButton boton_direcciones = (ImageButton)findViewById(R.id.ic_direcciones);
+        if (visibles){
+            animador.disolverAparecer(fecha_imagen);
+            animador.disolverAparecer(ciudad_imagen);
+            animador.disolverAparecer(direccion_imagen);
+            animador.disolverAparecer(boton_direcciones);
+        } else{
+            animador.disolverDesaparecer(fecha_imagen);
+            animador.disolverDesaparecer(ciudad_imagen);
+            animador.disolverDesaparecer(direccion_imagen);
+            animador.disolverDesaparecer(boton_direcciones);
+        }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
         switch (requestCode) {
             case PERMISO_ACCESO_UBICACION: {
-                if (!(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                if (!(grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED &&
                         grantResults[1] == PackageManager.PERMISSION_GRANTED)) {
                     acceso_ubicacion = false;
-                    Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado), Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
+                            Toast.LENGTH_LONG).show();
                 } else{
                     acceso_ubicacion = true;
                 }
                 break;
             }
         }
-    }
-
-    /**
-     * hacerZoomImagenLista: Hace un zoom animado a una imagen de la lista.
-     * @param posicion_imagen_lista int posicion en la lista de la imagen
-     */
-    private void hacerZoomImagenLista(int posicion_imagen_lista, final View contenedor_pequeno) {
-        if(hay_zoom){
-            quitarZoomActual();
-            return;
-        }
-        hay_zoom = true;
-        //Si hay una animacion corriendo, se cancela
-        if (animador_actual != null) {
-            animador_actual.cancel();
-        }
-        //Si aun no se define la duracion de la animacion, se inicializa con los valores del SO
-        if (duracion_animacion == 0){
-            duracion_animacion = getResources().getInteger(android.R.integer.config_shortAnimTime);
-        }
-        this.contenedor_pequeno = contenedor_pequeno;
-
-        //Cargamos la imagen en alta definicion
-        File carpeta_fotos = Util.obtenerDirectorioFotos();
-        if (carpeta_fotos == null) {
-            Log.w(LOG_TAG, "No se encontro el directorio de fotos");
-            return;
-        }
-        String ruta = carpeta_fotos.getPath() + File.separator +
-                Util.obtenerNombreImagen(ids_fotos.get(posicion_imagen_lista), getContentResolver()) + Util.EXTENSION_ARCHIVO_FOTO;
-        imagen_ampliada = (ImageView)findViewById(R.id.imagen_ampliada);
-        imagen_ampliada.setImageBitmap(LectorBitmaps.extraerBitmapEscaladoAlmacenaiento(ruta, tamano_imagen_ampliada));
-
-        //Se calculan los contornos iniciales y finales de la imagen
-        contornos_iniciales = new Rect();
-        final Rect contornos_finales = new Rect();
-        final Point offset = new Point();
-
-        //El contorno inicial es el rectangulo del contenedor de la imagen pequena,
-        //el contorno final es el de la imagen grande y el offset es el origen del contenedor grande
-        contenedor_pequeno.getGlobalVisibleRect(contornos_iniciales);
-        findViewById(R.id.contenedor).getGlobalVisibleRect(contornos_finales, offset);
-        contornos_iniciales.offset(-offset.x, -offset.y);
-        contornos_finales.offset(-offset.x, -offset.y);
-
-        //Se ajustan los bordes para que se mantenga la imagen igual (no se deforme)
-        float escala_inicial;
-        if ((float) contornos_finales.width() / contornos_finales.height()
-                > (float) contornos_iniciales.width() / contornos_iniciales.height()) {
-            //Se extienden los bordes horizontalmente
-            escala_inicial = (float) contornos_iniciales.height() / contornos_finales.height();
-            float ancho_inicial = escala_inicial * contornos_finales.width();
-            float ancho_diferencia = (ancho_inicial - contornos_iniciales.width()) / 2;
-            contornos_iniciales.left -= ancho_diferencia;
-            contornos_iniciales.right += ancho_diferencia;
-        } else {
-            //Se extienden los bordes verticalmente
-            escala_inicial = (float) contornos_iniciales.width() / contornos_finales.width();
-            float alto_inicial = escala_inicial * contornos_finales.height();
-            float alto_diferencia = (alto_inicial - contornos_iniciales.height()) / 2;
-            contornos_iniciales.top -= alto_diferencia;
-            contornos_iniciales.bottom += alto_diferencia;
-        }
-
-        //Escondemos el contenedor pequeno y mostramos el contenedor grande
-        contenedor_pequeno.setAlpha(0f);
-        imagen_ampliada.setVisibility(View.VISIBLE);
-
-        //Ponemos los pivotes de la imagen ampliada en la esquina superior izquierda
-        imagen_ampliada.setPivotX(0f);
-        imagen_ampliada.setPivotY(0f);
-
-        //Construimos y corremos la animacion tanto de expansion como de posicion
-        AnimatorSet set_animacion = new AnimatorSet();
-        set_animacion
-                .play(ObjectAnimator.ofFloat(imagen_ampliada, View.X,
-                        contornos_iniciales.left, contornos_finales.left))
-                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.Y,
-                        contornos_iniciales.top, contornos_finales.top))
-                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_X, escala_inicial, 1f))
-                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_Y, escala_inicial, 1f));
-        set_animacion.setDuration(duracion_animacion);
-        set_animacion.setInterpolator(new DecelerateInterpolator());
-        set_animacion.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                animador_actual = null;
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-                animador_actual = null;
-            }
-        });
-        set_animacion.start();
-        animador_actual = set_animacion;
-
-        // Al hacer click en la imagen, se regresa el zoom
-        escala_final_inicial = escala_inicial;
-        imagen_ampliada.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                quitarZoomActual();
-            }
-        });
-    }
-
-    /**
-     * quitarZoomActual: Hace una animacion para remover el zoom a la imagen de la lista donde se aplico.
-     */
-    private void quitarZoomActual(){
-        if (!hay_zoom){
-            return;
-        }
-        hay_zoom = false;
-        if (animador_actual != null) {
-            animador_actual.cancel();
-        }
-
-        //Creamos la animacion
-        AnimatorSet set_animacion = new AnimatorSet();
-        set_animacion
-                .play(ObjectAnimator.ofFloat(imagen_ampliada, View.X, contornos_iniciales.left))
-                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.Y, contornos_iniciales.top))
-                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_X, escala_final_inicial))
-                .with(ObjectAnimator.ofFloat(imagen_ampliada, View.SCALE_Y, escala_final_inicial));
-        set_animacion.setDuration(duracion_animacion);
-        set_animacion.setInterpolator(new DecelerateInterpolator());
-        set_animacion.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                contenedor_pequeno.setAlpha(1f);
-                imagen_ampliada.setVisibility(View.GONE);
-                animador_actual = null;
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-                contenedor_pequeno.setAlpha(1f);
-                imagen_ampliada.setVisibility(View.GONE);
-                animador_actual = null;
-            }
-        });
-        set_animacion.start();
-        animador_actual = set_animacion;
     }
 
     /**
@@ -622,17 +494,6 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                 ubicacion_actual.longitude + "()"));
         if (intent.resolveActivity(getPackageManager()) != null) {
             startActivity(intent);
-        }
-    }
-
-    @Override
-    public void onBackPressed()
-    {
-        //Si existe un zoom, al presionar back se quita
-        if (hay_zoom){
-            quitarZoomActual();
-        } else {
-            super.onBackPressed();
         }
     }
 
