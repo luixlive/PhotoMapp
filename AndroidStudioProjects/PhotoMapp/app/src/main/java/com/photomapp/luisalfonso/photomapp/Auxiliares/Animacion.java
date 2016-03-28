@@ -1,4 +1,4 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -34,6 +34,9 @@ public class Animacion {
 
     //Bandera para determinar si actualmente existe un zoom a una imagen
     private boolean hay_zoom = false;
+
+    //Listener para escuchar los eventos de las animaciones
+    private AnimacionListener listener;
 
     public Animacion(int duracion_animacion){
         this.duracion_animacion = duracion_animacion;
@@ -115,6 +118,10 @@ public class Animacion {
             @Override
             public void onAnimationEnd(Animator animation) {
                 animador_actual = null;
+
+                if (listener != null){
+                    listener.zoomAmpliado(contenedor_grande);
+                }
             }
 
             @Override
@@ -164,6 +171,10 @@ public class Animacion {
                 contenedor_pequeno.setAlpha(1f);
                 contenedor_grande.setVisibility(View.GONE);
                 animador_actual = null;
+
+                if (listener != null){
+                    listener.zoomReducido(contenedor_pequeno);
+                }
             }
 
             @Override
@@ -180,6 +191,10 @@ public class Animacion {
         return true;
     }
 
+    /**
+     * disolverAparecer: Aparece una vista en el layout de forma gradual (disolver)
+     * @param aparecer_vista View que se va a aparecer
+     */
     public void disolverAparecer(View aparecer_vista) {
         //Hacemos la vista visible pero transparente
         aparecer_vista.setAlpha(0f);
@@ -190,8 +205,16 @@ public class Animacion {
                 .alpha(1f)
                 .setDuration(duracion_animacion)
                 .setListener(null);
+
+        if (listener != null){
+            listener.vistaAparecida(aparecer_vista);
+        }
     }
 
+    /**
+     * disolverDesaparecer: Desaparece una vista en el layout de forma graudal (disolver)
+     * @param desaparecer_vista View que se va a desaparecer
+     */
     public void disolverDesaparecer(final View desaparecer_vista){
         //Animamos la vista para que se vuelva transparente, al final las hacemos invisibles
         desaparecer_vista.animate()
@@ -203,6 +226,29 @@ public class Animacion {
                         desaparecer_vista.setVisibility(View.INVISIBLE);
                     }
                 });
+
+        if (listener != null){
+            listener.vistaDesaparecida(desaparecer_vista);
+        }
+    }
+
+    /**
+     * setAnimacionListener: Subscribe un listener para detectar los eventos de las animaciones
+     * @param listener AnimacionListener
+     */
+    public void setAnimacionListener(AnimacionListener listener){
+        this.listener = listener;
+    }
+
+    /**
+     * Interfaz AnimacionListener: Para implementar listener y escuchar los eventos de las
+     * animaciones
+     */
+    public interface AnimacionListener{
+        void zoomAmpliado(View v);
+        void zoomReducido(View v);
+        void vistaAparecida(View v);
+        void vistaDesaparecida(View v);
     }
 
 }

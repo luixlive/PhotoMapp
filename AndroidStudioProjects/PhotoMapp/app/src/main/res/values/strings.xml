@@ -45,5 +45,7 @@
     <string name="borrar">Borrar</string>
     <string name="editar">Editar</string>
     <string name="aceptar">Aceptar</string>
+    <string name="descripcion_foto_tomada">Muestra la foto recién tomada por unos instantes</string>
+    <string name="galeria">Ver en Galería</string>
 
 </resources>

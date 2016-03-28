@@ -1,4 +1,4 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.Manifest;
 import android.content.Context;

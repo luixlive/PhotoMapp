@@ -1,6 +1,7 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
@@ -28,6 +29,7 @@ import android.view.TextureView;
 import android.widget.Toast;
 
 import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
+import com.photomapp.luisalfonso.photomapp.R;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,8 +38,9 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Clase ManejadorCamara: Se encarga de abrir correctamente la camara y mostrar las imagenes en streaming en el contenedor
- * que se le indique en el constructor, asi como tomar fotos y regresar el resultado por medio de la interfaz TomarFotoListener
+ * Clase ManejadorCamara: Se encarga de abrir correctamente la camara y mostrar las imagenes en
+ * streaming en el contenedor que se le indique en el constructor, asi como tomar fotos y regresar
+ * el resultado por medio de la interfaz TomarFotoListener
  */
 public class ManejadorCamara implements TextureView.SurfaceTextureListener {
 
@@ -51,7 +54,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     private static final int ESTADO_ESPERANDO_NO_PRECAPTURA = 3;
     private static final int ESTADO_FOTO_TOMADA = 4;
 
-    //Macros para indicar el angulo de la foto y el tiempo maximo de espera para abrir o cerrar la camara
+    //Macros para indicar el angulo de la foto y el tiempo maximo de espera de la camara
     private static final int ORIENTACION_PORTRAIT = 90;
     private static final int CAMARA_TIEMPO_ESPERA = 2500;
 
@@ -61,7 +64,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     //Variables auxiliares para el streaming de las imagenes
     private TextureView contenedor_imagenes;
     private Size tam_surface;
-    private ActivityPrincipal activity_padre;
+    private Activity activity_padre;
 
     //Variables para las acciones que se ejecutaran en background
     private HandlerThread hilo_background;
@@ -115,15 +118,18 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                         foto_tomada.close();
                     }
                     foto_tomada = lector.acquireLatestImage();
-                    listener.fotoTomada(foto_tomada);
+                    if (listener != null) {
+                        listener.fotoTomada(foto_tomada);
+                    }
                 }
 
             };
-    private CameraCaptureSession.CaptureCallback captura_imagen_listener = new CameraCaptureSession.CaptureCallback() {
+    private CameraCaptureSession.CaptureCallback captura_imagen_listener =
+            new CameraCaptureSession.CaptureCallback() {
 
         /**
-         * procesar(CaptureResult resultado): de acuerdo al resultado obtenido, realiza las acciones determinadas
-         * con la imagen obtenida.
+         * procesar(CaptureResult resultado): de acuerdo al resultado obtenido, realiza las
+         * acciones determinadas con la imagen obtenida.
          * @param resultado resultado regresado por la camara.
          */
         private void procesar(CaptureResult resultado) {
@@ -134,17 +140,24 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                 }
                 //Si aun no se enfoca
                 case ESTADO_ESPERANDO_ENFOQUE: {
-                    //Dependiendo del estao del enfoque y exposicion de la imagen decide si tomar foto o iniciar
-                    //una precaptura
-                    Integer estado_enfoque_automatico = resultado.get(CaptureResult.CONTROL_AF_STATE);
+                    //Se checa enfoque y exposicion para decidir si tomar la foto
+                    Integer estado_enfoque_automatico =
+                            resultado.get(CaptureResult.CONTROL_AF_STATE);
                     if (estado_enfoque_automatico == null) {
                         tomarFoto();
-                    } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == estado_enfoque_automatico ||
-                            CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == estado_enfoque_automatico ||
-                            CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED == estado_enfoque_automatico) {
-                        Integer estado_exposicion_automatica = resultado.get(CaptureResult.CONTROL_AE_STATE);
+                    } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ==
+                            estado_enfoque_automatico ||
+                            CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED ==
+                                    estado_enfoque_automatico ||
+                            CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED ==
+                                    estado_enfoque_automatico) {
+
+                        Integer estado_exposicion_automatica =
+                                resultado.get(CaptureResult.CONTROL_AE_STATE);
+
                         if (estado_exposicion_automatica == null ||
-                                estado_exposicion_automatica == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
+                                estado_exposicion_automatica ==
+                                        CaptureResult.CONTROL_AE_STATE_CONVERGED) {
                             estado_actual_camara = ESTADO_FOTO_TOMADA;
                             tomarFoto();
                         } else {
@@ -156,10 +169,13 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                 //Si aun no comienza la precaptura
                 case ESTADO_ESPERANDO_PRECAPTURA: {
                     //Si se esta tomando una precaptura
-                    Integer estado_exposicion_automatica = resultado.get(CaptureResult.CONTROL_AE_STATE);
+                    Integer estado_exposicion_automatica =
+                            resultado.get(CaptureResult.CONTROL_AE_STATE);
                     if (estado_exposicion_automatica == null ||
-                            estado_exposicion_automatica == CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
-                            estado_exposicion_automatica == CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
+                            estado_exposicion_automatica ==
+                                    CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
+                            estado_exposicion_automatica ==
+                                    CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
                         estado_actual_camara = ESTADO_ESPERANDO_NO_PRECAPTURA;
                     }
                     break;
@@ -167,9 +183,11 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                 //Si ya termino la precaptura
                 case ESTADO_ESPERANDO_NO_PRECAPTURA: {
                     //Si el estado de exposicion ya esta listo, toma la foto
-                    Integer estado_exposicion_automatica = resultado.get(CaptureResult.CONTROL_AE_STATE);
+                    Integer estado_exposicion_automatica =
+                            resultado.get(CaptureResult.CONTROL_AE_STATE);
                     if (estado_exposicion_automatica == null ||
-                            estado_exposicion_automatica != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
+                            estado_exposicion_automatica !=
+                                    CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
                         estado_actual_camara = ESTADO_FOTO_TOMADA;
                         tomarFoto();
                     }
@@ -179,25 +197,22 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         }
 
         @Override
-        public void onCaptureProgressed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request,
+        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+                                        @NonNull CaptureRequest request,
                                         @NonNull CaptureResult partialResult) {
             procesar(partialResult);
         }
 
         @Override
-        public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request,
+        public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                       @NonNull CaptureRequest request,
                                        @NonNull TotalCaptureResult result) {
             procesar(result);
         }
 
     };
 
-    public ManejadorCamara(ActivityPrincipal activity, TextureView contenedor_imagenes){
-        try {
-            listener = activity;
-        } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString() + " se debe implementar TomarFotoListener");
-        }
+    public ManejadorCamara(Activity activity, TextureView contenedor_imagenes){
         this.contenedor_imagenes = contenedor_imagenes;
         activity_padre = activity;
     }
@@ -249,28 +264,22 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     }
 
     /**
-     * Interfaz TomarFotoListener: Debe ser implementada por quien usa el manejador para escuchar
-     * el evento cuando se toma una foto.
-     */
-    public interface TomarFotoListener {
-        void fotoTomada(Image foto);
-    }
-
-    /**
      * abrirCamara: procedimiento que obtiene las caracteristicas y configuraciones de la camara.
      */
     private void abrirCamara() {
         //Primero nos aseguramos de tener permiso del usuario para acceder a la camara
-        if (ActivityCompat.checkSelfPermission(activity_padre, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(activity_padre, new String[]{Manifest.permission.CAMERA},
+        if (ActivityCompat.checkSelfPermission(activity_padre, Manifest.permission.CAMERA) !=
+                PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity_padre,
+                    new String[]{Manifest.permission.CAMERA},
                     ActivityPrincipal.PERMISO_ACCESO_CAMARA);
         }
-        if (activity_padre.permisoAccesoCamara()) {
+        if (((ActivityPrincipal)activity_padre).permisoAccesoCamara()) {
             //Configuramos las variables y obtenemos el id de la camara principal
             String id_camara = obtenerCaracteristicasCamara();
 
-            //Abrimos la camara utilizando el handler y nos apoyamos de un semaforo para bloquear apertura y cerrado
-            //de la camara
+            //Abrimos la camara utilizando el handler y nos apoyamos de un semaforo para bloquear
+            //apertura y cerrado de la camara
             CameraManager administrador_camaras = (CameraManager) activity_padre.getSystemService(Context.CAMERA_SERVICE);
             try {
                 if (!semaforo_abrir_cerrar_camara.tryAcquire(CAMARA_TIEMPO_ESPERA, TimeUnit.MILLISECONDS)) {
@@ -430,7 +439,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
      */
     private void tomarFoto() {
         try {
-            if (null == camara || !activity_padre.permisoAccesoCamara()) {
+            if (null == camara || !((ActivityPrincipal)activity_padre).permisoAccesoCamara()) {
                 return;
             }
 
@@ -552,6 +561,18 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
             return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
         }
 
+    }
+
+    public void setTomarFotoListener(TomarFotoListener listener){
+        this.listener = listener;
+    }
+
+    /**
+     * Interfaz TomarFotoListener: Debe ser implementada por quien usa el manejador para escuchar
+     * el evento cuando se toma una foto.
+     */
+    public interface TomarFotoListener {
+        void fotoTomada(Image foto);
     }
 
 }

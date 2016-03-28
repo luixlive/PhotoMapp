@@ -3,18 +3,30 @@
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextureView
-        android:id="@+id/contenedor_imagen_camara"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/contenedor_texture">
 
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/boton_camara"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_margin="16dp"
-        android:src="@mipmap/ic_camara"
-        android:onClick="foto" />
+        <TextureView
+            android:id="@+id/contenedor_imagen_camara"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <android.support.design.widget.FloatingActionButton
+            android:id="@+id/boton_camara"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_margin="16dp"
+            android:src="@mipmap/ic_camara"
+            android:onClick="foto" />
+    </FrameLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/foto_tomada"
+        android:contentDescription="@string/descripcion_foto_tomada" />
 
 </FrameLayout>

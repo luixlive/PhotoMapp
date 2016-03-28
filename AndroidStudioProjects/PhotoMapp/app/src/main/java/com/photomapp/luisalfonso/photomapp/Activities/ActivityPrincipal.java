@@ -8,8 +8,10 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.location.Location;
 import android.media.Image;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -23,26 +25,27 @@ import android.widget.Toast;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
-import com.photomapp.luisalfonso.photomapp.GuardadorFoto;
-import com.photomapp.luisalfonso.photomapp.ManejadorCamara;
-import com.photomapp.luisalfonso.photomapp.ManejadorUbicacion;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.GuardadorFoto;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorCamara;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorFotoTomada;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorUbicacion;
 import com.photomapp.luisalfonso.photomapp.R;
-import com.photomapp.luisalfonso.photomapp.Util;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 
-import java.io.File;
-
 /**
- * Clase ActivityPrincipal: accede a la camara del smartphone y muestra al usuario un preview de la imagen para que
- * pueda tomar fotos. Cuenta con un menu que da acceso al mapa y a las configuraciones de la app. Implementa la interfaz
- * SurfaceTextureListener para tener acceso a los eventos de la TextureView que es donde se muestra el stream de la camara.
+ * Clase ActivityPrincipal: accede a la camara del smartphone y muestra al usuario un preview de la
+ * imagen para que pueda tomar fotos. Cuenta con un menu que da acceso al mapa y a las
+ * configuraciones de la app. Implementa la interfaz SurfaceTextureListener para tener acceso a los
+ * eventos de la TextureView que es donde se muestra el stream de la camara.
  */
-public class ActivityPrincipal extends AppCompatActivity implements DialogoNombreFoto.NombreSeleccionadoListener,
-        ManejadorCamara.TomarFotoListener, GuardadorFoto.GuardarFotoListener{
+public class ActivityPrincipal extends AppCompatActivity implements
+        DialogoNombreFoto.NombreSeleccionadoListener{
 
     private static final String LOG_TAG = "ACTIVITY PRINCIPAL";
 
     //Macros
+    private final static int TIEMPO_MOSTRAR_FOTO = 400;
     public static final int PERMISO_ACCESO_CAMARA = 0;
     public static final int PERMISO_ACCESO_UBICACION = 1;
 
@@ -51,28 +54,41 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
     private boolean permiso_acceso_camara = true;
     private boolean permiso_acceso_ubicacion = true;
 
-    //Variables para el uso del almacenamiento externo
-    private File archivo;
-
-    //Variable apoyo para obtencion de la ubicacion
+    //Objetos para el manejo de la ubicacion, camara y fotos tomadas
     private ManejadorUbicacion manejador_ubicacion;
-
-    //Variables de apoyo para el manejo de la camara en el TextureView y la captura
     private ManejadorCamara manejador_camara;
-    private Image foto_tomada;
+    private ManejadorFotoTomada manejador_foto;
 
+    //Variables utilizadas para el guardado de las fotos tomadas
     private String fecha;
     private double latitud, longitud;
+    private Bitmap foto_tomada;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_principal);
 
-        //Iniciamos el manejador de la ubicacion, el direcotorio de las fotos y el contenedor de las imagenes
+        //Obtenemos los manejadores de camara y ubicacion
         manejador_ubicacion = new ManejadorUbicacion(this);
-        archivo = Util.obtenerDirectorioFotos();
-        manejador_camara = new ManejadorCamara(this, (TextureView) findViewById(R.id.contenedor_imagen_camara));
+        manejador_camara = new ManejadorCamara(this,
+                (TextureView) findViewById(R.id.contenedor_imagen_camara));
+        manejador_camara.setTomarFotoListener(new ManejadorCamara.TomarFotoListener() {
+
+            @Override
+            public void fotoTomada(Image foto) {
+                if (Util.obtenerEscrituraPosible()) {
+                    Toast.makeText(getApplicationContext(), getString(R.string.toast_foto_tomada),
+                            Toast.LENGTH_SHORT).show();
+                    obtenerYMostrarFotoTomada(foto);
+                } else {
+                    Toast.makeText(getApplicationContext(),
+                            getString(R.string.no_escritura_posible),
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+
+        });
     }
 
     @Override
@@ -89,9 +105,11 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
         manejador_camara.iniciar();
         //Se obtienen las preferencias de usuario y se comienza a actualizar la ubicacion
         SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
-        autonombrar_fotos = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_AUTONOMBRAR_FOTO_KEY, false);
-        manejador_camara.cambiarPreferenciaFlash(preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_FLASH_KEY,
-                false));
+        autonombrar_fotos = preferencias.getBoolean(
+                ActivityPreferencias.PREFERENCIA_AUTONOMBRAR_FOTO_KEY, false);
+        manejador_camara.cambiarPreferenciaFlash(
+                preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_FLASH_KEY,
+                        false));
         manejador_ubicacion.comenzarActualizacionUbicacion();
     }
 
@@ -106,13 +124,13 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {     //Capturamos el item seleccionado por el usuario del menu (preferncias o mapa)
+        //Si se pulsa un boton del menu
+        switch (item.getItemId()) {
             case R.id.preferencias:
                 startActivity(new Intent(this, ActivityPreferencias.class));
                 return true;
             case R.id.mapa:
-                Intent intent = new Intent(this, ActivityMapa.class);
-                startActivity(intent);
+                startActivity(new Intent(this, ActivityMapa.class));
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -120,106 +138,152 @@ public class ActivityPrincipal extends AppCompatActivity implements DialogoNombr
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        //Si fue necesario pedir permiso al usuario para acceso a camara o ubicacion
         switch (requestCode) {
-            //Verificamos si el usuario dio acceso o no a la camara
             case PERMISO_ACCESO_CAMARA:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED) {
                     permiso_acceso_camara = true;
                 } else {
                     permiso_acceso_camara = false;
-                    Toast.makeText(this, getString(R.string.permiso_camara_denegado), Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.permiso_camara_denegado),
+                            Toast.LENGTH_LONG).show();
                 }
                 break;
             case PERMISO_ACCESO_UBICACION:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED) {
                     permiso_acceso_ubicacion = true;
                 } else {
                     permiso_acceso_ubicacion = false;
-                    Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado), Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
+                            Toast.LENGTH_LONG).show();
                 }
         }
     }
 
     @Override
     public void nombreSeleccionado(String nombre) {
-        //Una vez que el usuario seleccione el nombre, se guarda la imagen y deja de enfocar
-        Location ubicacion = manejador_ubicacion.obtenerUbicacion();
-        if (ubicacion != null) {
-            LatLng lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
-
-            fecha = Util.obtenerFecha(getString(R.string.base_datos_formato_fecha));
-            latitud = lat_y_long.latitude;
-            longitud = lat_y_long.longitude;
-            GuardadorFoto guardador = new GuardadorFoto(this,
-                    new File(archivo + File.separator + nombre + Util.EXTENSION_ARCHIVO_FOTO),
-                    nombre);
-            guardador.execute(foto_tomada);
-        } else{
-            Toast.makeText(ActivityPrincipal.this, getString(R.string.no_hay_ubicacion), Toast.LENGTH_SHORT).show();
-        }
-        manejador_camara.fotoTerminada();
+        //Si el termina de introducir el nombre de la foto, se guarda y se la muestra del resultado
+        guardarFoto(nombre);
+        manejador_foto.quitarFotoMostrada();
     }
 
     @Override
     public void nombreCancelado() {
-        //Si el usuario cierra el dialogo de alguna forma, no guardamos la foto
-        manejador_camara.fotoTerminada();
+        manejador_foto.quitarFotoMostrada();
     }
 
-    @Override
-    public void fotoTomada(Image foto) {
-        foto_tomada = foto;
-        if (Util.obtenerEscrituraPosible()) {
-            Toast.makeText(getApplicationContext(), getString(R.string.toast_foto_tomada),
-                    Toast.LENGTH_SHORT).show();
-            //Obtenemos la imagen y el nombre por default
-            String nombre_foto = Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha)) + getString(R.string.app_name);
+    /**
+     * obtenerYMostrarFotoTomada: Obtiene un bitmap a partir del objeto Image que regresa la camara
+     * y muestra el resultado en la pantalla
+     * @param foto Image obtenida por la camara al tomar la foto
+     */
+    private void obtenerYMostrarFotoTomada(Image foto) {
+        manejador_foto = new ManejadorFotoTomada(
+                foto,
+                findViewById(R.id.contenedor_texture),
+                findViewById(R.id.foto_tomada),
+                getResources().getInteger(android.R.integer.config_shortAnimTime)
+                );
+        manejador_foto.setManejadorFotoTomadaListener(
+                new ManejadorFotoTomada.ManejadorFotoTomadaListener() {
 
-            //Si elegio autonombrar fotos en preferencias se pone el nombre por default
-            if (autonombrar_fotos) {
-                Toast.makeText(ActivityPrincipal.this, getString(R.string.toast_foto_tomada), Toast.LENGTH_SHORT).show();
-                Location ubicacion = manejador_ubicacion.obtenerUbicacion();
-                LatLng lat_y_long;
-                if (ubicacion != null) {
-                    lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
-                    fecha = Util.obtenerFecha(getString(R.string.base_datos_formato_fecha));
-                    latitud = lat_y_long.latitude;
-                    longitud = lat_y_long.longitude;
-                    GuardadorFoto guardador = new GuardadorFoto(this,
-                            new File(archivo + File.separator + nombre_foto + Util.EXTENSION_ARCHIVO_FOTO),
-                            nombre_foto);
-                    guardador.execute(foto_tomada);
+            @Override
+            public void fotoObtenida(Bitmap foto) {
+                Log.i(LOG_TAG, "FOTO PROCESADA");
+                foto_tomada = foto;
+                String nombre_foto =
+                        Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha))
+                        + getString(R.string.app_name);
+
+                //Si elegio autonombrar fotos en preferencias se pone el nombre por default
+                if (autonombrar_fotos) {
+                    //Se guarda la foto y se muestra el resultado por un lapso
+                    guardarFoto(nombre_foto);
+                    new AsyncTask<Void, Void, Integer>() {
+
+                        @Override
+                        protected Integer doInBackground(Void... params) {
+                            try {
+                                Thread.sleep(TIEMPO_MOSTRAR_FOTO);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            return 0;
+                        }
+
+                        @Override
+                        protected void onPostExecute(Integer result) {
+                            manejador_foto.quitarFotoMostrada();
+                        }
+
+                    }.execute();
                 }
+                //Si no eligio autonombrar se muestra un dialogo para que elija el nombre
+                else {
+                    DialogoNombreFoto dialogo_nombre_foto =
+                            DialogoNombreFoto.nuevoDialogo(nombre_foto);
+                    dialogo_nombre_foto.show(getFragmentManager(),
+                            DialogoNombreFoto.class.getName());
+                }
+            }
+
+            @Override
+            public void fotoMostrada() {
+                Log.i(LOG_TAG, "FOTO MOSTRADA");
+                //La foto esta actualmente en la pantalla
+            }
+
+            @Override
+            public void fotoQuitada() {
+                //Cuando se retire la foto, volvemos a poner la camara
                 manejador_camara.fotoTerminada();
             }
-            //Si no eligio autonombrar se le muestra un dialogo para que elija el nombre de la foto
-            else {
-                DialogoNombreFoto dialogo_nombre_foto = DialogoNombreFoto.nuevoDialogo(nombre_foto);
-                dialogo_nombre_foto.show(getFragmentManager(), DialogoNombreFoto.class.getName());
-            }
-        } else {
-            Toast.makeText(ActivityPrincipal.this, ActivityPrincipal.this.getString(R.string.no_escritura_posible),
-                    Toast.LENGTH_SHORT).show();
+        });
+        manejador_foto.execute();
+    }
+
+    /**
+     * guardarFoto: Guarda la foto en el almacenamiento externo
+     * @param nombre String nombre con que se guardara la foto
+     */
+    public void guardarFoto(String nombre){
+        //Obtenemos los datos necesarios para guardar la foto y el registro en la base de datos
+        Location ubicacion = manejador_ubicacion.obtenerUbicacion();
+        LatLng lat_y_long;
+        if (ubicacion != null) {
+            lat_y_long = new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude());
+            fecha = Util.obtenerFecha(getString(R.string.base_datos_formato_fecha));
+            latitud = lat_y_long.latitude;
+            longitud = lat_y_long.longitude;
+            GuardadorFoto guardador = new GuardadorFoto(nombre, foto_tomada, getContentResolver());
+            //Si se guarda exitosamente se almacenan los registros
+            guardador.setGuardadorFotoListener(new GuardadorFoto.GuardarFotoListener() {
+
+                @Override
+                public void fotoGuardada(String nombre_foto) {
+                    //Insertamos el registro en el ContentProvider (y base de datos)
+                    ContentValues values = new ContentValues();
+                    values.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre_foto);
+                    values.put(ContratoPhotoMapp.Fotos.COLUMNA_FECHA, fecha);
+                    values.put(ContratoPhotoMapp.Fotos.COLUMNA_LATITUD, latitud);
+                    values.put(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD, longitud);
+                    getContentResolver().insert(ContratoPhotoMapp.Fotos.CONTENT_URI, values);
+                }
+
+                @Override
+                public void fotoNoGuardada() {
+                    Toast.makeText(getApplicationContext(),
+                            getString(R.string.toast_foto_no_tomada), Toast.LENGTH_SHORT).show();
+                }
+
+            });
+            guardador.execute();
         }
-    }
-
-    @Override
-    public void fotoGuardada(String nombre_foto) {
-        //Insertamos el registro en el ContentProvider (y base de datos)
-        ContentValues values = new ContentValues();
-        values.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre_foto);
-        values.put(ContratoPhotoMapp.Fotos.COLUMNA_FECHA, fecha);
-        values.put(ContratoPhotoMapp.Fotos.COLUMNA_LATITUD, latitud);
-        values.put(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD, longitud);
-        getContentResolver().insert(ContratoPhotoMapp.Fotos.CONTENT_URI, values);
-    }
-
-    @Override
-    public void fotoNoGuardada(String nombre_foto) {
-        Log.w(LOG_TAG, "Foto no guardada");
-        Toast.makeText(getApplicationContext(), getString(R.string.toast_foto_no_tomada),
-                Toast.LENGTH_SHORT).show();
+        foto_tomada = null;
     }
 
     /**

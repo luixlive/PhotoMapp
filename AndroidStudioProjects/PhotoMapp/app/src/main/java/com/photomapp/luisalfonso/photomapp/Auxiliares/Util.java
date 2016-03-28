@@ -1,10 +1,12 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.util.Log;
 
@@ -75,7 +77,8 @@ public class Util {
         if (cursor != null) {
             cursor.moveToFirst();
             for (int i = 0; i < cursor.getCount(); i++) {
-                Log.v("IMPRESION BD:", cursor.getInt(0) + " " + cursor.getString(1) + " " + cursor.getString(2) + " " +
+                Log.v("IMPRESION BD:", cursor.getInt(0) + " " + cursor.getString(1) + " " +
+                        cursor.getString(2) + " " +
                         cursor.getDouble(3) + " " + cursor.getDouble(4));
                 cursor.moveToNext();
             }
@@ -84,15 +87,16 @@ public class Util {
     }*/
 
     /**
-     * obtenerDirectorioFotos: verifica que sea posible guardar datos en el almacenamiento externo y regresa el directorio donde
-     * se guardaran las fotos.
-     * @return File con el archivo donde se almacenan las fotos, si no es posible leer ni guardar regresa null
+     * obtenerDirectorioFotos: verifica que sea posible guardar datos en el almacenamiento externo y
+     * regresa el directorio donde se guardaran las fotos.
+     * @return File con el archivo donde se almacenan las fotos, si no es posible obtenerlo, null
      */
     public static File obtenerDirectorioFotos() {
         //Guardamos en sus variables respectivas si podemos escribir y leer del almacenamiento
         if (obtenerEscrituraPosible()) {
             //Obtenemos el directorio de fotogragias con el nombre de la app
-            File directorio = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            File directorio = new File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                     NOMBRE_ALBUM_FOTOS);
             if (!directorio.mkdirs()) {
                 Log.w(LOG_TAG, "No se pudo crear el directorio.");
@@ -103,7 +107,7 @@ public class Util {
     }
 
     /**
-     * obtenerEscrituraPosible: Se asegura si es posible escribir en el almacenamiento del dispositivo.
+     * obtenerEscrituraPosible: Se asegura si es posible escribir en el almacenamiento externo.
      * @return true si es posible escribir en el almacenamiento, false de otro modo.
      */
     public static boolean obtenerEscrituraPosible() {
@@ -153,11 +157,50 @@ public class Util {
         );
         if (cursor != null) {
             if (cursor.moveToFirst()) {
-                nombre = cursor.getString(cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
+                nombre = cursor.getString(
+                        cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
             }
             cursor.close();
         }
         return nombre;
+    }
+
+    /**
+     * obtenerDimensionesFraccionPantalla: Obtiene las dimensiones de altura de la fraccion de la
+     * pantalla deseada.
+     * @param recursos Resources de la App
+     * @param relacion_pantalla int con la relacion de la fraccion deseada
+     * @return int valor de altura de la fraccion
+     */
+    public static int obtenerDimensionesFraccionPantalla(Resources recursos, int relacion_pantalla){
+        int pantalla_alto = recursos.getDisplayMetrics().heightPixels;
+        return pantalla_alto/relacion_pantalla;
+    }
+
+    /**
+     * eliminarImagenesAlmacenamiento: Borra fotos del almacenamiento externo en un hilo en segundo
+     * plano.
+     * @param nombre_foto String[] con los nombres de las fotos a borrar
+     */
+    public static void eliminarImagenesAlmacenamiento(String[] nombre_foto) {
+        new AsyncTask<String[], Void, Boolean>(){
+
+            @Override
+            protected Boolean doInBackground(String[]... params) {
+                for (String nombre: params[0]) {
+                    File archivo = new File(obtenerDirectorioFotos() + File.separator + nombre +
+                            EXTENSION_ARCHIVO_FOTO);
+                    if (archivo.exists()) {
+                        if (!archivo.delete()) {
+                            Log.w(LOG_TAG, "No se pudo borrar la foto " + nombre);
+                        }
+                    }
+                }
+                return true;
+            }
+
+        }.execute(nombre_foto);
+
     }
 
 }

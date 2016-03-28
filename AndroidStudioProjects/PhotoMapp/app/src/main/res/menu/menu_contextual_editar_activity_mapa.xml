@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item android:id="@+id/editar"
+        android:icon="@mipmap/ic_editar"
+        android:title="@string/editar"
+        app:showAsAction="ifRoom"/>
+
+    <item android:id="@+id/galeria"
+        android:icon="@mipmap/ic_galeria_fotos"
+        android:title="@string/galeria"
+        app:showAsAction="ifRoom"/>
+
+    <item android:id="@+id/mapas"
+        android:icon="@mipmap/ic_direcciones_blanco"
+        android:title="@string/galeria"
+        app:showAsAction="ifRoom"/>
+
+</menu>

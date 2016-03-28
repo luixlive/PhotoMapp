@@ -1,4 +1,4 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.os.Environment;
 import android.support.v7.widget.RecyclerView;
@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import com.photomapp.luisalfonso.photomapp.Activities.ActivityMapa;
+import com.photomapp.luisalfonso.photomapp.R;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -107,8 +108,10 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
      */
     public void borrarSelecciones(){
         //Se limpia la lista y se notifica al adaptador
-        items_seleccionados.clear();
-        notifyDataSetChanged();
+        if (items_seleccionados.size() > 0) {
+            items_seleccionados.clear();
+            notifyDataSetChanged();
+        }
     }
 
     /**

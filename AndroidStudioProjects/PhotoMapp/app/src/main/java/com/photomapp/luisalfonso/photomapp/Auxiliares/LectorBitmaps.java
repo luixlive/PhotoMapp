@@ -1,4 +1,4 @@
-package com.photomapp.luisalfonso.photomapp;
+package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.app.Activity;
 import android.content.res.Resources;
@@ -12,6 +12,8 @@ import android.os.AsyncTask;
 import android.support.v4.content.ContextCompat;
 import android.util.LruCache;
 import android.widget.ImageView;
+
+import com.photomapp.luisalfonso.photomapp.R;
 
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
@@ -33,7 +35,7 @@ public class LectorBitmaps {
     private static final String RUTA_AUN_NO_INDICADA = "NULO";
     //Macros de apoyo para el manejo de la memoria cache (fraccion equivale a que se usara un octavo de la memoria disponble)
     private static final int KILO_BYTE = 1024;
-    private static final int FRACCION_MEMORIA_CACHE = 16;
+    private static final int FRACCION_MEMORIA_CACHE = 12;
 
     //Variables que almacenan las longitudes de las imagenes en el smartphone que se estan utilizando y el bitmap "cargando"
     private int longitud_lado_img_lista;
@@ -62,9 +64,8 @@ public class LectorBitmaps {
      * obtenerImagenCargando: Obtiene el bitmap "cagando" que se situan en las posiciones de la lista donde aun no cargan
      * las imagenes.
      * @param activity contexto donde se ubica la lista.
-     * @return bitmap con la imagen "cargando"
      */
-    private Bitmap obtenerImagenCargando(Activity activity) {
+    private void obtenerImagenCargando(Activity activity) {
         //Obtenemos el icono
         Bitmap icono_cache = BitmapFactory.decodeResource(activity.getResources(), R.mipmap.ic_guardando_cache);
         //Con ayuda de las librerias Canvas creamos un rectangulo y ponemos el icono justo en el centro
@@ -76,7 +77,6 @@ public class LectorBitmaps {
                 longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getWidth())/2),
                 longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getHeight())/2));
         canvas.drawBitmap(icono_cache, null, rectangulo_posicion_icono, null);
-        return imagen_cargando;
     }
 
     /**
@@ -115,6 +115,16 @@ public class LectorBitmaps {
         opciones_imagen.inJustDecodeBounds = false;
 
         return BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
+    }
+
+    public static Bitmap extraerBitmapEscaladoBytes(byte[] bytes, int longitud){
+        final BitmapFactory.Options opciones_imagen = new BitmapFactory.Options();
+        opciones_imagen.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opciones_imagen);
+        opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen, longitud, longitud);
+        opciones_imagen.inJustDecodeBounds = false;
+
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opciones_imagen);
     }
 
     /**
@@ -186,19 +196,13 @@ public class LectorBitmaps {
         final BitmapFactory.Options opciones_imagen = new BitmapFactory.Options();
         opciones_imagen.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
-        Bitmap resultado;
 
         opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen, longitud_lado_img_lista, longitud_lado_img_lista);
         opciones_imagen.inJustDecodeBounds = false;
         //Si existe un bitmap desechado que se pueda reutilizar activamos la opcion inBitmap para ahorrar memoria
         ponerOpcionInBitmap(opciones_imagen);
-        Bitmap imagen = BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
 
-        resultado = Bitmap.createBitmap(longitud_lado_img_lista, longitud_lado_img_lista, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(resultado);
-        canvas.drawBitmap(imagen, null, new Rect(0, 0, longitud_lado_img_lista, longitud_lado_img_lista), null);
-
-        return resultado;
+        return BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
     }
 
     /**
@@ -311,11 +315,30 @@ public class LectorBitmaps {
             if (imagen == null){
                 return null;
             }
+            Bitmap resultado;
+            //Recortamos el cuadrado central de la imagen (si no es cudrada)
+            if (imagen.getWidth() >= imagen.getHeight()){
+                resultado = Bitmap.createBitmap(
+                        imagen,
+                        imagen.getWidth() / 2 - imagen.getHeight() / 2,
+                        0,
+                        imagen.getHeight(),
+                        imagen.getHeight()
+                );
+            }else{
+                resultado = Bitmap.createBitmap(
+                        imagen,
+                        0,
+                        imagen.getHeight()/2 - imagen.getWidth()/2,
+                        imagen.getWidth(),
+                        imagen.getWidth()
+                );
+            }
             //Agregamos la imagen a cache
             if (memoria_cache.get(ruta) == null) {
-                memoria_cache.put(ruta, imagen);
+                memoria_cache.put(ruta, resultado);
             }
-            return imagen;
+            return resultado;
         }
 
         @Override
