@@ -42,13 +42,18 @@ public class GuardadorFoto extends AsyncTask<Void, Void, Boolean> {
     @Override
     protected Boolean doInBackground(Void... params) {
         //Escribe los bytes en el fichero de salida
+        Log.i(LOG_TAG, "background");
         String ruta_foto = Util.obtenerDirectorioFotos() + File.separator + nombre +
                 Util.EXTENSION_ARCHIVO_FOTO;
+        Log.i(LOG_TAG, "se obtuvo directorio");
         FileOutputStream salida = null;
         try {
             salida = new FileOutputStream(ruta_foto);
             foto.compress(Bitmap.CompressFormat.JPEG, 85, salida);
+            Log.i(LOG_TAG, "se guardo foto");
         } catch (IOException e) {
+            Log.e(LOG_TAG, "No se pudo guardar la foto: " + e.getMessage());
+            e.printStackTrace();
             return false;
         } finally {
             //Cierra la imagen y el escritor

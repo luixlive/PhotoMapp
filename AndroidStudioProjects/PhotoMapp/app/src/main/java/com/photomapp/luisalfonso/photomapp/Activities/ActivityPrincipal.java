@@ -1,4 +1,5 @@
 /**
+ * Luis Alfonso Chávez Abbadie
  * Ingeniería de Software 2
  * Ingeniería en Cibernética y en Sistemas Computacionales, 6 semestre
  */
@@ -16,7 +17,6 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.TextureView;
@@ -24,6 +24,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorPermisos;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.GuardadorFoto;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorCamara;
@@ -36,23 +37,16 @@ import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 /**
  * Clase ActivityPrincipal: accede a la camara del smartphone y muestra al usuario un preview de la
  * imagen para que pueda tomar fotos. Cuenta con un menu que da acceso al mapa y a las
- * configuraciones de la app. Implementa la interfaz SurfaceTextureListener para tener acceso a los
- * eventos de la TextureView que es donde se muestra el stream de la camara.
+ * configuraciones de la app.
  */
 public class ActivityPrincipal extends AppCompatActivity implements
         DialogoNombreFoto.NombreSeleccionadoListener{
 
-    private static final String LOG_TAG = "ACTIVITY PRINCIPAL";
-
     //Macros
     private final static int TIEMPO_MOSTRAR_FOTO = 400;
-    public static final int PERMISO_ACCESO_CAMARA = 0;
-    public static final int PERMISO_ACCESO_UBICACION = 1;
 
     //Variables de las preferencias del usuario
     private boolean autonombrar_fotos;
-    private boolean permiso_acceso_camara = true;
-    private boolean permiso_acceso_ubicacion = true;
 
     //Objetos para el manejo de la ubicacion, camara y fotos tomadas
     private ManejadorUbicacion manejador_ubicacion;
@@ -70,25 +64,30 @@ public class ActivityPrincipal extends AppCompatActivity implements
         setContentView(R.layout.activity_principal);
 
         //Obtenemos los manejadores de camara y ubicacion
-        manejador_ubicacion = new ManejadorUbicacion(this);
-        manejador_camara = new ManejadorCamara(this,
-                (TextureView) findViewById(R.id.contenedor_imagen_camara));
-        manejador_camara.setTomarFotoListener(new ManejadorCamara.TomarFotoListener() {
+        if(ManejadorPermisos.checarPermisoUbicacion(this)) {
+            manejador_ubicacion = new ManejadorUbicacion(this);
+        }
 
-            @Override
-            public void fotoTomada(Image foto) {
-                if (Util.obtenerEscrituraPosible()) {
-                    Toast.makeText(getApplicationContext(), getString(R.string.toast_foto_tomada),
-                            Toast.LENGTH_SHORT).show();
-                    obtenerYMostrarFotoTomada(foto);
-                } else {
-                    Toast.makeText(getApplicationContext(),
-                            getString(R.string.no_escritura_posible),
-                            Toast.LENGTH_SHORT).show();
+        if (ManejadorPermisos.checarPermisoCamara(this)) {
+            manejador_camara = new ManejadorCamara(this,
+                    (TextureView) findViewById(R.id.contenedor_imagen_camara));
+            manejador_camara.setTomarFotoListener(new ManejadorCamara.TomarFotoListener() {
+
+                @Override
+                public void fotoTomada(Image foto) {
+                    if (Util.obtenerEscrituraPosible()) {
+                        Toast.makeText(getApplicationContext(),
+                                getString(R.string.toast_foto_tomada), Toast.LENGTH_SHORT).show();
+                        obtenerYMostrarFotoTomada(foto);
+                    } else {
+                        Toast.makeText(getApplicationContext(),
+                                getString(R.string.no_escritura_posible),
+                                Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
 
-        });
+            });
+        }
     }
 
     @Override
@@ -102,22 +101,32 @@ public class ActivityPrincipal extends AppCompatActivity implements
     public void onResume() {
         super.onResume();
 
-        manejador_camara.iniciar();
         //Se obtienen las preferencias de usuario y se comienza a actualizar la ubicacion
         SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
         autonombrar_fotos = preferencias.getBoolean(
                 ActivityPreferencias.PREFERENCIA_AUTONOMBRAR_FOTO_KEY, false);
-        manejador_camara.cambiarPreferenciaFlash(
-                preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_FLASH_KEY,
-                        false));
-        manejador_ubicacion.comenzarActualizacionUbicacion();
+        //Primero se asegura de tener permiso del usuario para acceder a la camara
+        if (manejador_camara != null) {
+            manejador_camara.iniciar();
+            manejador_camara.cambiarPreferenciaFlash(
+                    preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_FLASH_KEY,
+                            false)
+            );
+        }
+        if (manejador_ubicacion != null) {
+            manejador_ubicacion.comenzarActualizacionUbicacion();
+        }
     }
 
     @Override
     protected void onPause() {
-        //Cierra la camara y termina con los procesos de background y obtencion de ubicacion
-        manejador_camara.terminar();
-        manejador_ubicacion.detenerActualizacionUbicacion();
+        //Cierra los procesos de camara y ubicacion
+        if (manejador_camara != null) {
+            manejador_camara.terminar();
+        }
+        if (manejador_ubicacion != null) {
+            manejador_ubicacion.detenerActualizacionUbicacion();
+        }
 
         super.onPause();
     }
@@ -142,23 +151,52 @@ public class ActivityPrincipal extends AppCompatActivity implements
                                            @NonNull int[] grantResults) {
         //Si fue necesario pedir permiso al usuario para acceso a camara o ubicacion
         switch (requestCode) {
-            case PERMISO_ACCESO_CAMARA:
+
+            case ManejadorPermisos.PERMISO_ACCESO_CAMARA:
                 if (grantResults.length > 0 && grantResults[0] ==
                         PackageManager.PERMISSION_GRANTED) {
-                    permiso_acceso_camara = true;
+                    manejador_camara = new ManejadorCamara(this,
+                            (TextureView) findViewById(R.id.contenedor_imagen_camara));
+                    manejador_camara.setTomarFotoListener(
+                            new ManejadorCamara.TomarFotoListener() {
+
+                                @Override
+                                public void fotoTomada(Image foto) {
+                                    if (Util.obtenerEscrituraPosible()) {
+                                        Toast.makeText(getApplicationContext(),
+                                                getString(R.string.toast_foto_tomada),
+                                                Toast.LENGTH_SHORT).show();
+                                        obtenerYMostrarFotoTomada(foto);
+                                 } else {
+                                       Toast.makeText(getApplicationContext(),
+                                                getString(R.string.no_escritura_posible),
+                                                Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            }
+                    );
+                    //Despues de inicia el proceso de captura de imagen
+                    manejador_camara.iniciar();
                 } else {
-                    permiso_acceso_camara = false;
                     Toast.makeText(this, getString(R.string.permiso_camara_denegado),
                             Toast.LENGTH_LONG).show();
                 }
                 break;
-            case PERMISO_ACCESO_UBICACION:
-                if (grantResults.length > 0 && grantResults[0] ==
-                        PackageManager.PERMISSION_GRANTED) {
-                    permiso_acceso_ubicacion = true;
-                } else {
-                    permiso_acceso_ubicacion = false;
+
+            case ManejadorPermisos.PERMISO_ACCESO_UBICACION:
+                if (grantResults.length > 0 &&
+                        grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    manejador_ubicacion = new ManejadorUbicacion(this);
+                    manejador_ubicacion.comenzarActualizacionUbicacion();
+                } else{
                     Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
+                            Toast.LENGTH_LONG).show();
+                }
+
+            case ManejadorPermisos.PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO:
+                if (!(grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED)) {
+                    Toast.makeText(this, getString(R.string.permiso_almacenamiento_denegado),
                             Toast.LENGTH_LONG).show();
                 }
         }
@@ -187,62 +225,61 @@ public class ActivityPrincipal extends AppCompatActivity implements
                 findViewById(R.id.contenedor_texture),
                 findViewById(R.id.foto_tomada),
                 getResources().getInteger(android.R.integer.config_shortAnimTime)
-                );
+        );
         manejador_foto.setManejadorFotoTomadaListener(
                 new ManejadorFotoTomada.ManejadorFotoTomadaListener() {
 
-            @Override
-            public void fotoObtenida(Bitmap foto) {
-                Log.i(LOG_TAG, "FOTO PROCESADA");
-                foto_tomada = foto;
-                String nombre_foto =
-                        Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha))
-                        + getString(R.string.app_name);
+                    @Override
+                    public void fotoObtenida(Bitmap foto) {
+                        foto_tomada = foto;
+                        String nombre_foto =
+                                Util.obtenerFecha(getString(R.string.nombre_foto_formato_fecha))
+                                        + getString(R.string.app_name);
 
-                //Si elegio autonombrar fotos en preferencias se pone el nombre por default
-                if (autonombrar_fotos) {
-                    //Se guarda la foto y se muestra el resultado por un lapso
-                    guardarFoto(nombre_foto);
-                    new AsyncTask<Void, Void, Integer>() {
+                        //Si elegio autonombrar fotos en preferencias se pone el nombre por default
+                        if (autonombrar_fotos) {
+                            //Se guarda la foto y se muestra el resultado por un lapso
+                            guardarFoto(nombre_foto);
+                            new AsyncTask<Void, Void, Integer>() {
 
-                        @Override
-                        protected Integer doInBackground(Void... params) {
-                            try {
-                                Thread.sleep(TIEMPO_MOSTRAR_FOTO);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            return 0;
+                                @Override
+                                protected Integer doInBackground(Void... params) {
+                                    try {
+                                        Thread.sleep(TIEMPO_MOSTRAR_FOTO);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                    return 0;
+                                }
+
+                                @Override
+                                protected void onPostExecute(Integer result) {
+                                    manejador_foto.quitarFotoMostrada();
+                                }
+
+                             }.execute();
                         }
-
-                        @Override
-                        protected void onPostExecute(Integer result) {
-                            manejador_foto.quitarFotoMostrada();
+                        //Si no eligio autonombrar se muestra un dialogo para que elija el nombre
+                        else {
+                            DialogoNombreFoto dialogo_nombre_foto =
+                                    DialogoNombreFoto.nuevoDialogo(nombre_foto);
+                                dialogo_nombre_foto.show(getFragmentManager(),
+                                        DialogoNombreFoto.class.getName());
                         }
+                    }
 
-                    }.execute();
-                }
-                //Si no eligio autonombrar se muestra un dialogo para que elija el nombre
-                else {
-                    DialogoNombreFoto dialogo_nombre_foto =
-                            DialogoNombreFoto.nuevoDialogo(nombre_foto);
-                    dialogo_nombre_foto.show(getFragmentManager(),
-                            DialogoNombreFoto.class.getName());
-                }
-            }
+                    @Override
+                    public void fotoMostrada() {
+                        //La foto esta actualmente en la pantalla
+                    }
 
-            @Override
-            public void fotoMostrada() {
-                Log.i(LOG_TAG, "FOTO MOSTRADA");
-                //La foto esta actualmente en la pantalla
-            }
+                    @Override
+                    public void fotoQuitada() {
+                        //Cuando se retire la foto, volvemos a poner la camara
+                        manejador_camara.fotoTerminada();
+                    }
 
-            @Override
-            public void fotoQuitada() {
-                //Cuando se retire la foto, volvemos a poner la camara
-                manejador_camara.fotoTerminada();
-            }
-        });
+                });
         manejador_foto.execute();
     }
 
@@ -287,27 +324,19 @@ public class ActivityPrincipal extends AppCompatActivity implements
     }
 
     /**
-     * foto: obtiene una captura de imagen de la camara. Solo se llama cuando el usuario pulsa el FAB "Camara".
+     * foto: obtiene una captura de imagen de la camara. Solo se llama cuando el usuario pulsa el
+     * FAB "Camara".
      * @param boton_camara: vista del FAB
      */
     public void foto(View boton_camara) {
-        manejador_camara.foto();
-    }
-
-    /**
-     * ubicacionPermitida: Indica si el usuario permite acceder a su ubicacion.
-     * @return true si es posible acceder a la ubicacion, false de otro modoa
-     */
-    public boolean ubicacionPermitida(){
-        return permiso_acceso_ubicacion;
-    }
-
-    /**
-     * permisoAccesoCamara: Indica si el usuario permite acceder a su camara.
-     * @return true si es posible acceder a la camara, false de otro modoa
-     */
-    public boolean permisoAccesoCamara(){
-        return permiso_acceso_camara;
+        //Se necesitan permisos para acceder a la camara, obtener la ubicacion y guardar la foto
+        if (ManejadorPermisos.checarPermisoCamara(this)){
+            if (ManejadorPermisos.checarPermisoUbicacion(this)){
+                if (ManejadorPermisos.checarPermisoAlmacenamiento(this)) {
+                    manejador_camara.foto();
+                }
+            }
+        }
     }
 
 }

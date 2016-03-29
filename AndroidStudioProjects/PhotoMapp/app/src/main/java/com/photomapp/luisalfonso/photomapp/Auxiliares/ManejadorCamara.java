@@ -28,7 +28,6 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.widget.Toast;
 
-import com.photomapp.luisalfonso.photomapp.Activities.ActivityPrincipal;
 import com.photomapp.luisalfonso.photomapp.R;
 
 import java.util.Arrays;
@@ -127,92 +126,92 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     private CameraCaptureSession.CaptureCallback captura_imagen_listener =
             new CameraCaptureSession.CaptureCallback() {
 
-        /**
-         * procesar(CaptureResult resultado): de acuerdo al resultado obtenido, realiza las
-         * acciones determinadas con la imagen obtenida.
-         * @param resultado resultado regresado por la camara.
-         */
-        private void procesar(CaptureResult resultado) {
-            switch (estado_actual_camara) {
-                //Si estamos en modo preview no hacemos nada especial
-                case ESTADO_PREVIEW: {
-                    break;
-                }
-                //Si aun no se enfoca
-                case ESTADO_ESPERANDO_ENFOQUE: {
-                    //Se checa enfoque y exposicion para decidir si tomar la foto
-                    Integer estado_enfoque_automatico =
-                            resultado.get(CaptureResult.CONTROL_AF_STATE);
-                    if (estado_enfoque_automatico == null) {
-                        tomarFoto();
-                    } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ==
-                            estado_enfoque_automatico ||
-                            CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED ==
+                /**
+                 * procesar(CaptureResult resultado): de acuerdo al resultado obtenido, realiza las
+                 * acciones determinadas con la imagen obtenida.
+                 * @param resultado resultado regresado por la camara.
+                 */
+                private void procesar(CaptureResult resultado) {
+                    switch (estado_actual_camara) {
+                        //Si estamos en modo preview no hacemos nada especial
+                        case ESTADO_PREVIEW: {
+                            break;
+                        }
+                        //Si aun no se enfoca
+                        case ESTADO_ESPERANDO_ENFOQUE: {
+                            //Se checa enfoque y exposicion para decidir si tomar la foto
+                            Integer estado_enfoque_automatico =
+                                    resultado.get(CaptureResult.CONTROL_AF_STATE);
+                            if (estado_enfoque_automatico == null) {
+                                tomarFoto();
+                            } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ==
                                     estado_enfoque_automatico ||
-                            CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED ==
-                                    estado_enfoque_automatico) {
+                                    CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED ==
+                                            estado_enfoque_automatico ||
+                                    CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED ==
+                                            estado_enfoque_automatico) {
 
-                        Integer estado_exposicion_automatica =
-                                resultado.get(CaptureResult.CONTROL_AE_STATE);
+                                Integer estado_exposicion_automatica =
+                                        resultado.get(CaptureResult.CONTROL_AE_STATE);
 
-                        if (estado_exposicion_automatica == null ||
-                                estado_exposicion_automatica ==
-                                        CaptureResult.CONTROL_AE_STATE_CONVERGED) {
-                            estado_actual_camara = ESTADO_FOTO_TOMADA;
-                            tomarFoto();
-                        } else {
-                            tomarSecuenciaPrecaptura();
+                                if (estado_exposicion_automatica == null ||
+                                        estado_exposicion_automatica ==
+                                                CaptureResult.CONTROL_AE_STATE_CONVERGED) {
+                                    estado_actual_camara = ESTADO_FOTO_TOMADA;
+                                    tomarFoto();
+                                } else {
+                                    tomarSecuenciaPrecaptura();
+                                }
+                            }
+                            break;
+                        }
+                        //Si aun no comienza la precaptura
+                        case ESTADO_ESPERANDO_PRECAPTURA: {
+                            //Si se esta tomando una precaptura
+                            Integer estado_exposicion_automatica =
+                                    resultado.get(CaptureResult.CONTROL_AE_STATE);
+                            if (estado_exposicion_automatica == null ||
+                                    estado_exposicion_automatica ==
+                                            CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
+                                    estado_exposicion_automatica ==
+                                            CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
+                                estado_actual_camara = ESTADO_ESPERANDO_NO_PRECAPTURA;
+                            }
+                            break;
+                        }
+                        //Si ya termino la precaptura
+                        case ESTADO_ESPERANDO_NO_PRECAPTURA: {
+                            //Si el estado de exposicion ya esta listo, toma la foto
+                            Integer estado_exposicion_automatica =
+                                    resultado.get(CaptureResult.CONTROL_AE_STATE);
+                            if (estado_exposicion_automatica == null ||
+                                    estado_exposicion_automatica !=
+                                            CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
+                                estado_actual_camara = ESTADO_FOTO_TOMADA;
+                                tomarFoto();
+                            }
+                            break;
                         }
                     }
-                    break;
                 }
-                //Si aun no comienza la precaptura
-                case ESTADO_ESPERANDO_PRECAPTURA: {
-                    //Si se esta tomando una precaptura
-                    Integer estado_exposicion_automatica =
-                            resultado.get(CaptureResult.CONTROL_AE_STATE);
-                    if (estado_exposicion_automatica == null ||
-                            estado_exposicion_automatica ==
-                                    CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
-                            estado_exposicion_automatica ==
-                                    CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
-                        estado_actual_camara = ESTADO_ESPERANDO_NO_PRECAPTURA;
-                    }
-                    break;
+
+                @Override
+                public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+                                                @NonNull CaptureRequest request,
+                                                @NonNull CaptureResult partialResult) {
+                    procesar(partialResult);
                 }
-                //Si ya termino la precaptura
-                case ESTADO_ESPERANDO_NO_PRECAPTURA: {
-                    //Si el estado de exposicion ya esta listo, toma la foto
-                    Integer estado_exposicion_automatica =
-                            resultado.get(CaptureResult.CONTROL_AE_STATE);
-                    if (estado_exposicion_automatica == null ||
-                            estado_exposicion_automatica !=
-                                    CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
-                        estado_actual_camara = ESTADO_FOTO_TOMADA;
-                        tomarFoto();
-                    }
-                    break;
+
+                @Override
+                public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                               @NonNull CaptureRequest request,
+                                               @NonNull TotalCaptureResult result) {
+                    procesar(result);
                 }
-            }
-        }
 
-        @Override
-        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
-                                        @NonNull CaptureRequest request,
-                                        @NonNull CaptureResult partialResult) {
-            procesar(partialResult);
-        }
+            };
 
-        @Override
-        public void onCaptureCompleted(@NonNull CameraCaptureSession session,
-                                       @NonNull CaptureRequest request,
-                                       @NonNull TotalCaptureResult result) {
-            procesar(result);
-        }
-
-    };
-
-    public ManejadorCamara(Activity activity, TextureView contenedor_imagenes){
+    public ManejadorCamara(Activity activity, TextureView contenedor_imagenes) {
         this.contenedor_imagenes = contenedor_imagenes;
         activity_padre = activity;
     }
@@ -239,9 +238,9 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     }
 
     /**
-     * iniciar: Abre
+     * iniciar: Inicia el proceso de captura de imagen.
      */
-    public void iniciar(){
+    public void iniciar() {
         iniciarHiloBackground();
         if (contenedor_imagenes.isAvailable()) {
             abrirCamara();
@@ -250,31 +249,36 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         }
     }
 
-    public void foto(){
+    /**
+     * terminar: Termina los procesos de background y cierra la camara.
+     */
+    public void terminar() {
+        cerrarCamara();
+        terminarHiloBackground();
+    }
+
+    /**
+     * foto: Inicia el proceso de captura de foto.
+     */
+    public void foto() {
         enfocar();
     }
 
-    public void fotoTerminada(){
+    /**
+     * fotoTerminada: Termina el proceso de toma de foto y regresa al estado preview.
+     */
+    public void fotoTerminada() {
         dejarDeEnfocar();
-    }
-
-    public void terminar(){
-        cerrarCamara();
-        terminarHiloBackground();
     }
 
     /**
      * abrirCamara: procedimiento que obtiene las caracteristicas y configuraciones de la camara.
      */
     private void abrirCamara() {
-        //Primero nos aseguramos de tener permiso del usuario para acceder a la camara
-        if (ActivityCompat.checkSelfPermission(activity_padre, Manifest.permission.CAMERA) !=
-                PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(activity_padre,
-                    new String[]{Manifest.permission.CAMERA},
-                    ActivityPrincipal.PERMISO_ACCESO_CAMARA);
-        }
-        if (((ActivityPrincipal)activity_padre).permisoAccesoCamara()) {
+        //Es necesario volver a checar el permiso porque Android pide que se haga de forma
+        //explicita, pero sabemos que ya deberiamos tener el permiso
+        if (ActivityCompat.checkSelfPermission(activity_padre, Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED) {
             //Configuramos las variables y obtenemos el id de la camara principal
             String id_camara = obtenerCaracteristicasCamara();
 
@@ -439,7 +443,7 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
      */
     private void tomarFoto() {
         try {
-            if (null == camara || !((ActivityPrincipal)activity_padre).permisoAccesoCamara()) {
+            if (null == camara) {
                 return;
             }
 

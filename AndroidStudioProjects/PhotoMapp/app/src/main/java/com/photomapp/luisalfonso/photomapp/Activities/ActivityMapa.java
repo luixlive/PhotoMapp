@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Address;
@@ -12,6 +13,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -34,6 +36,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.AdaptadorListaFotos;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.Animacion;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorPermisos;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
 import com.photomapp.luisalfonso.photomapp.Fragments.ManejadorCPImagenes;
 import com.photomapp.luisalfonso.photomapp.R;
@@ -63,9 +66,6 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap mapa;
     private ArrayList<Integer> ids_fotos;
 
-    //Bandera que nos indica si el usuario da acceso a su ubicacion
-    private boolean acceso_ubicacion = true;
-
     //Variable que indica cual fue la ultima imagen pulsada por el usuario
     private int imagen_seleccionada = IMAGEN_NO_SELECCIONADA;
 
@@ -73,7 +73,8 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private AdaptadorListaFotos adaptador;
     private ActionMode modo_contextual_eliminar, modo_contextual_foto_seleccionada;
 
-    private LatLng ubicacion_actual;
+    //Variable que almacena la ubicacion de la imagen seleccionada actualmente
+    private LatLng ubicacion_imagen_actual;
 
     //Vistas de las leyendas del mapa para cada imagen
     private TextView fecha_imagen;
@@ -101,14 +102,15 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             String nombre_viejo = Util.obtenerNombreImagen(
                     ids_fotos.get(imagen_seleccionada),
                     getContentResolver());
-            if (nombre_viejo != null){
+            if (nombre_viejo != null) {
                 File carpeta_fotos = Util.obtenerDirectorioFotos();
                 if (carpeta_fotos != null) {
                     String ruta = carpeta_fotos.getPath();
                     File foto_actualizada = new File(ruta + File.separator + nombre_viejo +
                             Util.EXTENSION_ARCHIVO_FOTO);
+
                     if (!foto_actualizada.renameTo(new File(ruta + File.separator + nombre +
-                            Util.EXTENSION_ARCHIVO_FOTO))){
+                            Util.EXTENSION_ARCHIVO_FOTO))) {
                         return;
                     }
                 }
@@ -116,7 +118,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
 
             //Se actualiza el nombre en la base de datos
             String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
-            String[] args = { String.valueOf(ids_fotos.get(imagen_seleccionada)) };
+            String[] args = {String.valueOf(ids_fotos.get(imagen_seleccionada))};
             ContentValues nuevos_valores = new ContentValues();
             nuevos_valores.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre);
             int registros_actualizados = getContentResolver().update(
@@ -157,54 +159,41 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         //Obtenemos el mapa
         mapa = googleMap;
 
-        //Verificamos que el usuario nos de permiso de acceder a su ubicacion y llevamos el mapa a
-        //su ultima ubicacion conocida
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISO_ACCESO_UBICACION);
-        }
-        //Llevamos el mapa a la ultima ubicacion conocida del usuario
-        if (acceso_ubicacion) {
+        //Llevamos el mapa a la ultima ubicacion conocida del usuario hay permiso de usar ubicacion
+        if (ManejadorPermisos.checarPermisoUbicacion(this) &&
+                ActivityCompat.
+                        checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                        PackageManager.PERMISSION_GRANTED) {
             LocationManager administrador_ubicacion =
                     (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            Location ubicacion =
-                    administrador_ubicacion.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            Location ubicacion;
+
+            //Obtenemos la preferencia del usuario para usar GPS
+            SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
+            if (preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY, false)) {
+                ubicacion = administrador_ubicacion.getLastKnownLocation(
+                        LocationManager.GPS_PROVIDER);
+            } else {
+                ubicacion = administrador_ubicacion.getLastKnownLocation(
+                        LocationManager.NETWORK_PROVIDER);
+            }
             actualizarUbicacion(new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude()));
         }
     }
 
     @Override
-    public void onBackPressed()
-    {
+    public void onBackPressed() {
         //Si existe un zoom, al presionar back se quita
-        if (!animador.quitarZoomActual()){
+        if (!animador.quitarZoomActual()) {
             super.onBackPressed();
         }
     }
 
     /**
-     * iniciarListaSiEsPosible: Si es posible, inicia la lista con las fotos
+     * crearAnimador: Obtiene un objeto de tipo animacion y crea los callbacks necesarios para los
+     * eventos de animacion.
      */
-    private void iniciarListaSiEsPosible() {
-        if (Util.obtenerLecturaPosible()) {
-            mostrarListaFotos();
-        }
-    }
-
-    /**
-     * iniciarMapa: obtiene el fragment del mapa e inicia el listener para saber cuando este listo
-     */
-    private void iniciarMapa() {
-        SupportMapFragment mapFragment =
-                (SupportMapFragment)getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-    }
-
-    private void crearAnimador(){
+    private void crearAnimador() {
         animador = new Animacion(getResources().getInteger(android.R.integer.config_shortAnimTime));
         animador.setAnimacionListener(new Animacion.AnimacionListener() {
             @Override
@@ -244,7 +233,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                                 //a la imagen
                                 String ruta_imagen = Util.obtenerDirectorioFotos() +
                                         File.separator + Util.obtenerNombreImagen(
-                                        ids_fotos.get(imagen_seleccionada), getContentResolver() ) +
+                                        ids_fotos.get(imagen_seleccionada), getContentResolver()) +
                                         Util.EXTENSION_ARCHIVO_FOTO;
                                 String id = ManejadorCPImagenes.obtenerIdImagen(ruta_imagen,
                                         getContentResolver());
@@ -303,10 +292,32 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     /**
      * obtenerVistasLeyendas: Procedimiento para recuperar las vistas de las 3 leyendas del mapa
      */
-    private void obtenerVistasLeyendas(){
-        fecha_imagen = (TextView)findViewById(R.id.fecha_imagen);
-        ciudad_imagen = (TextView)findViewById(R.id.ciudad_imagen);
-        direccion_imagen = (TextView)findViewById(R.id.direccion_imagen);
+    private void obtenerVistasLeyendas() {
+        fecha_imagen = (TextView) findViewById(R.id.fecha_imagen);
+        ciudad_imagen = (TextView) findViewById(R.id.ciudad_imagen);
+        direccion_imagen = (TextView) findViewById(R.id.direccion_imagen);
+    }
+
+    /**
+     * iniciarListaSiEsPosible: Si es posible, inicia la lista con las fotos
+     */
+    private void iniciarListaSiEsPosible() {
+        //Tenemos que checar primero si el usuario dio acceso a su almacenamiento externo
+        if (ManejadorPermisos.checarPermisoAlmacenamiento(this)) {
+            //Despues checamos que sea posible utilizar su almacenamiento externo
+            if (Util.obtenerLecturaPosible()) {
+                mostrarListaFotos();
+            }
+        }
+    }
+
+    /**
+     * iniciarMapa: obtiene el fragment del mapa e inicia el listener para saber cuando este listo
+     */
+    private void iniciarMapa() {
+        SupportMapFragment mapFragment =
+                (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
     }
 
     /**
@@ -319,6 +330,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         //Utilizamo un objeto RecyclerView porque se le puede configurar un Layout horizontal para
         // que muestre la lista de forma horizontal.
         RecyclerView lista_fotos = (RecyclerView) findViewById(R.id.lista_fotos);
+        lista_fotos.setVisibility(View.VISIBLE);
         lista_fotos.setLayoutManager(manejador_layout_horizontal);
         lista_fotos.setHasFixedSize(true);
 
@@ -360,7 +372,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                 if (archivo_foto.exists()) {
                     nombres_imagenes.add(nombre_foto);
                     ids_fotos.add(id_foto);
-                } else{
+                } else {
                     fotos_no_encontradas = true;
                     ids_fotos_no_encontradas.add(String.valueOf(id_foto));
                 }
@@ -370,11 +382,11 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             cursor.close();
 
             //Eliminamos las fotos no encontradas de la base de datos (en caso de haber)
-            if (fotos_no_encontradas){
+            if (fotos_no_encontradas) {
                 int numero_fotos_eliminar = ids_fotos_no_encontradas.size();
                 for (int i = 0; i < numero_fotos_eliminar; i++) {
                     String clause_eliminar = ContratoPhotoMapp.Fotos._ID + " = ?";
-                    String[] args_eliminar = { ids_fotos_no_encontradas.get(i) };
+                    String[] args_eliminar = {ids_fotos_no_encontradas.get(i)};
                     int registros_eliminados = getContentResolver().delete(
                             ContratoPhotoMapp.Fotos.CONTENT_URI,
                             clause_eliminar,
@@ -390,7 +402,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         String arreglo_nombres_imagenes[] = new String[nombres_imagenes.size()];
-        for (int i = 0; i < nombres_imagenes.size(); i++){
+        for (int i = 0; i < nombres_imagenes.size(); i++) {
             arreglo_nombres_imagenes[i] = nombres_imagenes.get(i);
         }
         //Le pasamos al adaptador los nombres para que busque las imagenes y las ponga en la lista
@@ -402,7 +414,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void itemClick(View view, int position) {
                 //Si hay un zoom simplemente lo quitamos
-                if (animador.quitarZoomActual()){
+                if (animador.quitarZoomActual()) {
                     return;
                 }
                 if (modo_contextual_eliminar == null) {
@@ -447,13 +459,13 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                         //Si es la primera vez que se pulsa la imagen, actualiza el mapa
                         imagen_seleccionada = position;
                         cursor.moveToFirst();
-                        ubicacion_actual = new LatLng(cursor.getDouble(cursor.getColumnIndex(
+                        ubicacion_imagen_actual = new LatLng(cursor.getDouble(cursor.getColumnIndex(
                                 ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
                                 cursor.getDouble(cursor.getColumnIndex(
                                         ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
-                        actualizarUbicacion(ubicacion_actual);
-                        actualizarLeyendasMapa(
-                                Util.obtenerDireccion(getApplicationContext(), ubicacion_actual),
+                        actualizarUbicacion(ubicacion_imagen_actual);
+                        actualizarLeyendasMapa(Util.obtenerDireccion(getApplicationContext(),
+                                        ubicacion_imagen_actual),
                                 cursor.getString(cursor.getColumnIndex(
                                         ContratoPhotoMapp.Fotos.COLUMNA_FECHA)));
                         cursor.close();
@@ -465,9 +477,9 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             }
 
             @Override
-            public void itemLongClick(View view, int position){
+            public void itemLongClick(View view, int position) {
                 //Si hay zoom quitamos el zoom e ignoramoe el click
-                if (animador.quitarZoomActual()){
+                if (animador.quitarZoomActual()) {
                     return;
                 }
                 //Si el modo contextual no se ha iniciado, se comienza
@@ -512,10 +524,10 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
      * @param direccion Address con la direccion nueva
      * @param fecha String con la fecha nueva
      */
-    private void actualizarLeyendasMapa(Address direccion, String fecha){
+    private void actualizarLeyendasMapa(Address direccion, String fecha) {
         if (fecha_imagen.getVisibility() == View.INVISIBLE ||
                 ciudad_imagen.getVisibility() == View.INVISIBLE ||
-                direccion_imagen.getVisibility() == View.INVISIBLE){
+                direccion_imagen.getVisibility() == View.INVISIBLE) {
             hacerLeyendasVisibles(true);
         }
         fecha_imagen.setText(fecha);
@@ -528,14 +540,14 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
      * hacerLeyendasInvisibles: Hace las leyendas visibles o invisibles
      * @param visibles boolean indicando si se hacen visibles o invisibles
      */
-    private void hacerLeyendasVisibles(boolean visibles){
-        ImageButton boton_direcciones = (ImageButton)findViewById(R.id.ic_direcciones);
-        if (visibles){
+    private void hacerLeyendasVisibles(boolean visibles) {
+        ImageButton boton_direcciones = (ImageButton) findViewById(R.id.ic_direcciones);
+        if (visibles) {
             animador.disolverAparecer(fecha_imagen);
             animador.disolverAparecer(ciudad_imagen);
             animador.disolverAparecer(direccion_imagen);
             animador.disolverAparecer(boton_direcciones);
-        } else{
+        } else {
             animador.disolverDesaparecer(fecha_imagen);
             animador.disolverDesaparecer(ciudad_imagen);
             animador.disolverDesaparecer(direccion_imagen);
@@ -543,7 +555,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private void mostrarMenuEliminar(){
+    private void mostrarMenuEliminar() {
         modo_contextual_eliminar = startActionMode(new ActionMode.Callback() {
             @Override
             public boolean onCreateActionMode(ActionMode mode, Menu menu) {
@@ -589,7 +601,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                             String ruta_foto = Util.obtenerDirectorioFotos() +
                                     File.separator + nombres[i] + Util.EXTENSION_ARCHIVO_FOTO;
                             if (!ManejadorCPImagenes.
-                                    eliminarImagen(ruta_foto, getContentResolver())){
+                                    eliminarImagen(ruta_foto, getContentResolver())) {
                                 Log.w(LOG_TAG, "No se pudo eliminar la imagen del Content " +
                                         "Provider de la galeria de imagenes");
                             }
@@ -622,18 +634,28 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
                                            @NonNull int[] grantResults) {
         switch (requestCode) {
-            case PERMISO_ACCESO_UBICACION: {
+
+            case PERMISO_ACCESO_UBICACION:
+                //Parece redundante checar dos veces que exista el permiso, pero Android exige que
+                //se el permiso se demuestre explicitamente para llamar al metodo
+                //getLastKnownLocation
                 if (!(grantResults.length > 0 && grantResults[0] ==
-                        PackageManager.PERMISSION_GRANTED &&
-                        grantResults[1] == PackageManager.PERMISSION_GRANTED)) {
-                    acceso_ubicacion = false;
+                        PackageManager.PERMISSION_GRANTED)){
                     Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
                             Toast.LENGTH_LONG).show();
-                } else{
-                    acceso_ubicacion = true;
                 }
                 break;
-            }
+
+            case ManejadorPermisos.PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO:
+                if (grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, getString(R.string.permiso_almacenamiento_denegado),
+                            Toast.LENGTH_LONG).show();
+                } else{
+                    iniciarListaSiEsPosible();
+                }
+                break;
+
         }
     }
 
@@ -643,9 +665,9 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
      */
     public void mostrarDirecciones(View view){
         Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setData(Uri.parse("geo:" + ubicacion_actual.latitude + "," +
-                ubicacion_actual.longitude + "?q=" + ubicacion_actual.latitude + "," +
-                ubicacion_actual.longitude + "()"));
+        intent.setData(Uri.parse("geo:" + ubicacion_imagen_actual.latitude + "," +
+                ubicacion_imagen_actual.longitude + "?q=" + ubicacion_imagen_actual.latitude + "," +
+                ubicacion_imagen_actual.longitude + "()"));
         if (intent.resolveActivity(getPackageManager()) != null) {
             startActivity(intent);
         }
