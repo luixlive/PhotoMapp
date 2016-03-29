@@ -7,7 +7,7 @@
     <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/ic_app_grande"/>
+            android:src="@mipmap/ic_no_camara"/>
     </item>
 
 </layer-list>

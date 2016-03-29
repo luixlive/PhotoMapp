@@ -166,18 +166,6 @@ public class Util {
     }
 
     /**
-     * obtenerDimensionesFraccionPantalla: Obtiene las dimensiones de altura de la fraccion de la
-     * pantalla deseada.
-     * @param recursos Resources de la App
-     * @param relacion_pantalla int con la relacion de la fraccion deseada
-     * @return int valor de altura de la fraccion
-     */
-    public static int obtenerDimensionesFraccionPantalla(Resources recursos, int relacion_pantalla){
-        int pantalla_alto = recursos.getDisplayMetrics().heightPixels;
-        return pantalla_alto/relacion_pantalla;
-    }
-
-    /**
      * eliminarImagenesAlmacenamiento: Borra fotos del almacenamiento externo en un hilo en segundo
      * plano.
      * @param nombre_foto String[] con los nombres de las fotos a borrar

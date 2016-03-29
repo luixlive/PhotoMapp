@@ -23,22 +23,24 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * Clase LectorBitmaps: Ayuda a extraer imagenes como bitmaps del almacenamiento externo con un optimo uso de recursos.
- * Las buenas practicas usadas aqui se extrajeron de: http://developer.android.com/intl/es/training/displaying-bitmaps/index.html
- * Created by LUIS ALFONSO on 29/02/2016.
+ * Clase LectorBitmaps: Ayuda a extraer imagenes como bitmaps del almacenamiento externo con un
+ * optimo uso de recursos. Las buenas practicas usadas aqui se extrajeron de:
+ * http://developer.android.com/intl/es/training/displaying-bitmaps/index.html
  */
 public class LectorBitmaps {
 
-    //Modificar junto con el layout de la activity mapa para tener la relacion de la RecycleView respecto al parent
+    //Modificar junto con el layout de la activity mapa para tener la relacion de la RecycleView
+    //respecto al parent
     public static final int RELACION_PANTALLA_LISTA = 4;
-    //String de apoyo
+    //Macros
     private static final String RUTA_AUN_NO_INDICADA = "NULO";
-    //Macros de apoyo para el manejo de la memoria cache (fraccion equivale a que se usara un octavo de la memoria disponble)
     private static final int KILO_BYTE = 1024;
     private static final int FRACCION_MEMORIA_CACHE = 12;
 
-    //Variables que almacenan las longitudes de las imagenes en el smartphone que se estan utilizando y el bitmap "cargando"
+    //Variable que almacena la longitud del contenedor de las imagenes
     private int longitud_lado_img_lista;
+
+    //Imagen cargando
     private Bitmap imagen_cargando;
 
     //Variable que representa nuestra memoria cache para almacenar las imagenes
@@ -48,8 +50,8 @@ public class LectorBitmaps {
     private final Set<SoftReference<Bitmap>> bitmaps_desechados;
 
     /**
-     * LectorBitmaps: Constructor. Obtiene el alto de la pantalla y el contenedor de la imagen, y obtiene la imagen cargando que
-     * se muestra mientras se obtienen los bitmaps.
+     * LectorBitmaps: Constructor. Obtiene el alto de la pantalla y el contenedor de la imagen, y
+     * obtiene la imagen cargando que se muestra mientras se obtienen los bitmaps.
      */
     public LectorBitmaps(Activity activity) {
         int pantalla_alto = activity.getResources().getDisplayMetrics().heightPixels;
@@ -61,21 +63,25 @@ public class LectorBitmaps {
     }
 
     /**
-     * obtenerImagenCargando: Obtiene el bitmap "cagando" que se situan en las posiciones de la lista donde aun no cargan
-     * las imagenes.
+     * obtenerImagenCargando: Obtiene el bitmap "cagando" que se situan en las posiciones de la
+     * lista donde aun no cargan las imagenes.
      * @param activity contexto donde se ubica la lista.
      */
     private void obtenerImagenCargando(Activity activity) {
         //Obtenemos el icono
-        Bitmap icono_cache = BitmapFactory.decodeResource(activity.getResources(), R.mipmap.ic_guardando_cache);
-        //Con ayuda de las librerias Canvas creamos un rectangulo y ponemos el icono justo en el centro
-        imagen_cargando = Bitmap.createBitmap(longitud_lado_img_lista, longitud_lado_img_lista, Bitmap.Config.ARGB_8888);
+        Bitmap icono_cache =
+                BitmapFactory.decodeResource(activity.getResources(), R.mipmap.ic_guardando_cache);
+        //Con librerias Canvas creamos un rectangulo y ponemos el icono justo en el centro
+        imagen_cargando = Bitmap.createBitmap(longitud_lado_img_lista, longitud_lado_img_lista,
+                Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(imagen_cargando);
         canvas.drawColor(ContextCompat.getColor(activity, R.color.colorAccent));
-        Rect rectangulo_posicion_icono = new Rect((longitud_lado_img_lista-icono_cache.getWidth())/2,
+        Rect rectangulo_posicion_icono = new Rect(
+                (longitud_lado_img_lista-icono_cache.getWidth())/2,
                 (longitud_lado_img_lista-icono_cache.getHeight())/2,
                 longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getWidth())/2),
-                longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getHeight())/2));
+                longitud_lado_img_lista-((longitud_lado_img_lista-icono_cache.getHeight())/2)
+        );
         canvas.drawBitmap(icono_cache, null, rectangulo_posicion_icono, null);
     }
 
@@ -101,8 +107,8 @@ public class LectorBitmaps {
     }
 
     /**
-     * extraerBitmapEscaladoAlmacenaiento: Metodo estatico que sirve para extraer cualquier bitmap del
-     * almacenamiento externo escalado, sin embargo lo hace en el hilo actual.
+     * extraerBitmapEscaladoAlmacenaiento: Metodo estatico que sirve para extraer cualquier bitmap
+     * del almacenamiento externo escalado, sin embargo lo hace en el hilo actual.
      * @param ruta_archivo String con la ruta donde se ubica la imagen
      * @param longitud Longitud mas grande de los lados de la imagen para escalarla
      * @return Bitmap imagen escalada.
@@ -128,8 +134,8 @@ public class LectorBitmaps {
     }
 
     /**
-     * extraerImagenEn: Extrae el bitmap de la ruta especificada con el tamano necesario para situarlo en el contenedor que
-     * se especifique, de forma optima para el ahorro de recursos.
+     * extraerImagenEn: Extrae el bitmap de la ruta especificada con el tamano necesario para
+     * situarlo en el contenedor que se especifique, de forma optima para el ahorro de recursos.
      * @param activity contexto donde se ubica el contenedor.
      * @param contenedor_imagen ImageView que contendra a la imagen una vez cargada.
      * @param ruta String con la ruta del almacenamiento externo donde se ubica el bitmap.
@@ -142,7 +148,8 @@ public class LectorBitmaps {
             } else {
                 //si ya se libero el extractor innecesario se inicia uno nuevo con la nueva imagen
                 HiloExtractorBitmap extractor = new HiloExtractorBitmap(contenedor_imagen);
-                final AsyncDrawable asyncDrawable = new AsyncDrawable(activity.getResources(), imagen_cargando, extractor);
+                final AsyncDrawable asyncDrawable =
+                        new AsyncDrawable(activity.getResources(), imagen_cargando, extractor);
                 contenedor_imagen.setImageDrawable(asyncDrawable);
 
                 String parametros[] = { ruta };
@@ -152,13 +159,16 @@ public class LectorBitmaps {
     }
 
     /**
-     * cancelarExtractorInnecesario: Checa si ya existe un extractor para dicha ruta de imagen, de ser asi lo cancela.
+     * cancelarExtractorInnecesario: Checa si ya existe un extractor para dicha ruta de imagen, de
+     * ser asi lo cancela.
      * @param ruta String de la ruta de la imagen
      * @param contenedor_imagen ImageView del contenedor de la imagen
-     * @return false si ya existe un hilo extrayendo ese bitmap, true si no existe o se lo gro cancelar un hilo innecesario
+     * @return false si ya existe un hilo extrayendo ese bitmap, true si no existe o se logro
+     * cancelar un hilo innecesario
      */
     public static boolean cancelarExtractorInnecesario(String ruta, ImageView contenedor_imagen) {
-        //Obtenemos el hilo linkeado a este contenedor, si el contenedor ya se reciclo, no coincidiran las rutas y lo cancelamos
+        //Obtenemos el hilo linkeado a este contenedor, si el contenedor ya se reciclo, no
+        //coincidiran las rutas y lo cancelamos
         final HiloExtractorBitmap extractor = obtenerHiloExtractorBitmap(contenedor_imagen);
 
         if (extractor != null) {
@@ -189,7 +199,8 @@ public class LectorBitmaps {
     }
 
     /**
-     * extraerBitmapEscalado: Extrae un bitmap del almacenamiento externo escalado de forma optima para ahorrar memoria.
+     * extraerBitmapEscalado: Extrae un bitmap del almacenamiento externo escalado de forma optima
+     * para ahorrar memoria.
      * @return Bitmap con la imagen escalada
      */
     private Bitmap extraerBitmapListaEscaladoAlmacenamiento(String ruta_archivo) {
@@ -197,23 +208,26 @@ public class LectorBitmaps {
         opciones_imagen.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
 
-        opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen, longitud_lado_img_lista, longitud_lado_img_lista);
+        opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen,
+                longitud_lado_img_lista, longitud_lado_img_lista);
         opciones_imagen.inJustDecodeBounds = false;
-        //Si existe un bitmap desechado que se pueda reutilizar activamos la opcion inBitmap para ahorrar memoria
+        //Si existe un bitmap desechado que se pueda reutilizar activamos la opcion inBitmap para
+        //reciclar
         ponerOpcionInBitmap(opciones_imagen);
 
         return BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
     }
 
     /**
-     * calcularFactorEscala: calcula de acuerdo al tamano necesario de la imagen, el factor conveniente de escalado de la imagen
-     * para ahorrar memoria.
+     * calcularFactorEscala: calcula de acuerdo al tamano necesario de la imagen, el factor
+     * conveniente de escalado de la imagen para ahorrar memoria.
      * @param opciones_imagen BitmapFactory.Options de la imagen a extraer.
      * @param ancho_requerido int del ancho necesario de la imagen
      * @param alto_requerido int del alto necesario
      * @return entero con el factor de escala
      */
-    private static int calcularFactorEscala(BitmapFactory.Options opciones_imagen, int ancho_requerido, int alto_requerido) {
+    private static int calcularFactorEscala(BitmapFactory.Options opciones_imagen,
+                                            int ancho_requerido, int alto_requerido) {
         final int alto_imagen = opciones_imagen.outHeight;
         final int ancho_imagen = opciones_imagen.outWidth;
         int tamano_escala = 1;
@@ -221,7 +235,8 @@ public class LectorBitmaps {
         if (alto_imagen > alto_requerido || ancho_imagen > ancho_requerido) {
             final int mitad_alto = alto_imagen / 2;
             final int mitad_ancho = ancho_imagen / 2;
-            while ((mitad_alto / tamano_escala) > alto_requerido && (mitad_ancho / tamano_escala) > ancho_requerido) {
+            while ((mitad_alto / tamano_escala) > alto_requerido &&
+                    (mitad_ancho / tamano_escala) > ancho_requerido) {
                 tamano_escala *= 2;
             }
         }
@@ -229,8 +244,8 @@ public class LectorBitmaps {
     }
 
     /**
-     * ponerOpcionInBitmap: Checa si es posible reutilizar un bitmap desechado de acuerdo a los requerimientos de esta
-     * imagen en particular, de ser asi activa la opcion inBitmap.
+     * ponerOpcionInBitmap: Checa si es posible reutilizar un bitmap desechado de acuerdo a los
+     * requerimientos de esta imagen en particular, de ser asi activa la opcion inBitmap.
      * @param opciones BitmapFactory.Options de la imagen nueva.
      */
     private void ponerOpcionInBitmap(BitmapFactory.Options opciones) {
@@ -244,7 +259,8 @@ public class LectorBitmaps {
     }
 
     /**
-     * obtenerBitmapDesechado: Itera por todos los bitmaps desechados y va buscando uno que se pueda reutilizar.
+     * obtenerBitmapDesechado: Itera por todos los bitmaps desechados y buscando uno que se pueda
+     * reutilizar.
      * @param opciones BitmapFactory.Options de la imagen nueva.
      * @return bitmap que se puede reutilizar o nulo si no existe
      */
@@ -274,7 +290,8 @@ public class LectorBitmaps {
     }
 
     /**
-     * reutilizableParaInBitmap: Checa si un bitmap se puede reutilizar de acuerdo a las opciones especificadas.
+     * reutilizableParaInBitmap: Checa si un bitmap se puede reutilizar de acuerdo a las opciones
+     * especificadas.
      * @param candidato Bitmap que se va a investigar
      * @param opciones BitmapFactory.Options que el candidato debe satisfacer
      * @return true si se puede reutilizar este candidato, false de otro modo.
@@ -300,8 +317,8 @@ public class LectorBitmaps {
 
     private class HiloExtractorBitmap extends AsyncTask<String, Void, Bitmap> {
         private final WeakReference<ImageView> referencia_contenedor_imagen;
-        //Se hace global para utilizarlo como referencia al momento de preguntar si el extractor sigue siendo necesario o si
-        //el RecylcerView ya reciclo la vista
+        //Se hace global para utilizarlo como referencia al momento de preguntar si el extractor
+        //sigue siendo necesario o si el RecylcerView ya reciclo la vista
         public String ruta = RUTA_AUN_NO_INDICADA;
 
         public HiloExtractorBitmap(ImageView contenedor_imagen) {
@@ -316,7 +333,7 @@ public class LectorBitmaps {
                 return null;
             }
             Bitmap resultado;
-            //Recortamos el cuadrado central de la imagen (si no es cudrada)
+            //Recortamos el cuadrado central de la imagen (si no es cuadrada)
             if (imagen.getWidth() >= imagen.getHeight()){
                 resultado = Bitmap.createBitmap(
                         imagen,
@@ -358,9 +375,11 @@ public class LectorBitmaps {
     }
 
     /**
-     * Clase AsyncDrawable: Clase de apoyo que almacena el hilo extractor del bitmap de cada imageview que se va generando en el
-     * adaptador. Esto es necesario debido a que el recyclerview, asi como listview y otros, ahorra recursos reutilizando las vistas
-     * y es necesario sabes si la vista se reutiliza o destruye antes de terminar de leerla del almacenamiento externo.
+     * Clase AsyncDrawable: Clase de apoyo que almacena el hilo extractor del bitmap de cada
+     * imageview que se va generando en el adaptador. Esto es necesario debido a que el
+     * recyclerview, asi como listview y otros, ahorra recursos reutilizando las vistas
+     * y es necesario saber si la vista se reutiliza o destruye antes de terminar de leerla del
+     * almacenamiento externo.
      * Mas en: http://developer.android.com/intl/es/training/displaying-bitmaps/process-bitmap.html
      */
     static class AsyncDrawable extends BitmapDrawable {

@@ -17,6 +17,12 @@
 
     </style>
 
+    <style name="ActivityPrincipalTheme" parent="AppTheme">
+
+        <item name="android:windowBackground">@drawable/no_camara_background</item>
+
+    </style>
+
     <style name="TextoDescripcionImagen">
 
         <item name="android:textColor">@android:color/black</item>

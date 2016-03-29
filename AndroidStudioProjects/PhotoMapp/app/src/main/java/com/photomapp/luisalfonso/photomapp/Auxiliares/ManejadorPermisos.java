@@ -21,14 +21,22 @@ public class ManejadorPermisos {
 
     private static final String LOG_TAG = "ManejadorPermisos";
 
+    //Macros publicas para las etiquetas de los permisos al crear los dialogos de SO
     public static final int PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO = 0;
     public static final int PERMISO_ACCESO_CAMARA = 1;
     public static final int PERMISO_ACCESO_UBICACION = 2;
 
+    //Macros
     private static final String ETIQUETA_DIALOGO_PERMISO_ALMACENAMIENTO = "dialogo_almacenamiento";
     private static final String ETIQUETA_DIALOGO_PERMISO_CAMARA = "dialogo_camara";
     private static final String ETIQUETA_DIALOGO_PERMISO_UBICACION = "dialogo_ubicacion";
 
+    /**
+     * checarPermisoAlmacenamiento: Confirma que el usuario haya dado permiso para utilizar el
+     * almacenamiento externo, de no ser asi se lo solicita
+     * @param activity Activity contexto actual
+     * @return true si hay permiso, falso de otro modo
+     */
     public static boolean checarPermisoAlmacenamiento(final Activity activity){
         //Checamos si tenemos permiso
         int permiso = ActivityCompat.
@@ -79,6 +87,12 @@ public class ManejadorPermisos {
         }
     }
 
+    /**
+     * checarPermisoCamara: Confirma que el usuario haya dado permiso para utilizar la camara, de
+     * no ser asi se lo solicita
+     * @param activity Activity contexto actual
+     * @return true si hay permiso, falso de otro modo
+     */
     public static boolean checarPermisoCamara(final Activity activity){
         //Checamos si tenemos permiso
         int permiso = ActivityCompat.
@@ -128,6 +142,12 @@ public class ManejadorPermisos {
         }
     }
 
+    /**
+     * checarPermisoUbicacion: Confirma que el usuario haya dado permiso para utilizar la ubicacion,
+     * de no ser asi se lo solicita
+     * @param activity Activity contexto actual
+     * @return true si hay permiso, falso de otro modo
+     */
     public static boolean checarPermisoUbicacion(final Activity activity){
         //Checamos si tenemos permiso
         int permiso = ActivityCompat.
@@ -177,13 +197,25 @@ public class ManejadorPermisos {
         }
     }
 
+    /**
+     * Clase DialogoExplicacion: Crea dialogos simples para explicar al usuario porque es necesario
+     * que de permiso para utilizar determinado componente.
+     */
     public static class DialogoExplicacion extends DialogFragment {
 
+        //Macros
         private static final String TITULO_KEY = "titulo";
         private static final String MENSAJE_KEY = "mensaje";
 
+        //Listener para escuchar eventos
         private DecisionUsuarioListener listener;
 
+        /**
+         * nuevaInstancia: Regresa una instancia de Dialogo lista para mostrarse
+         * @param titulo String titulo del dialogo
+         * @param mensaje String mensaje del dialogo
+         * @return DialogoExplicacion creado
+         */
         public static DialogoExplicacion nuevaInstancia(String titulo, String mensaje) {
             DialogoExplicacion frag = new DialogoExplicacion();
             Bundle args = new Bundle();
@@ -195,6 +227,7 @@ public class ManejadorPermisos {
 
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
+            //Se capturan los argumentos y se regresa construye el dialogo
             String titulo = getArguments().getString(TITULO_KEY);
             String mensaje = getArguments().getString(MENSAJE_KEY);
 
@@ -205,23 +238,34 @@ public class ManejadorPermisos {
                             new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
-                                    listener.aceptado();
+                                    if (listener != null) {
+                                        listener.aceptado();
+                                    }
                                 }
                             })
                     .setNegativeButton(getString(R.string.cancelar),
                             new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
-                                    listener.cancelado();
+                                    if (listener != null) {
+                                        listener.cancelado();
+                                    }
                                 }
                             })
                     .create();
         }
 
+        /**
+         * setDecisionUsuarioListener: Subscribe un listener para escuchar los eventos del dialogo
+         * @param listener DecisionUsuarioListener
+         */
         public void setDecisionUsuarioListener(DecisionUsuarioListener listener){
             this.listener = listener;
         }
 
+        /**
+         * Interfaz DecisionUsuarioListener: Para escuchar los eventos del dialogo
+         */
         public interface DecisionUsuarioListener {
             void aceptado();
             void cancelado();

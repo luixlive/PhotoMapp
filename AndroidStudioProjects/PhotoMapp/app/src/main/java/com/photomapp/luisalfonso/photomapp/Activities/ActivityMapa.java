@@ -38,7 +38,7 @@ import com.photomapp.luisalfonso.photomapp.Auxiliares.AdaptadorListaFotos;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.Animacion;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorPermisos;
 import com.photomapp.luisalfonso.photomapp.Fragments.DialogoNombreFoto;
-import com.photomapp.luisalfonso.photomapp.Fragments.ManejadorCPImagenes;
+import com.photomapp.luisalfonso.photomapp.Auxiliares.ManejadorCPImagenes;
 import com.photomapp.luisalfonso.photomapp.R;
 import com.photomapp.luisalfonso.photomapp.Auxiliares.Util;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
@@ -452,8 +452,8 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                                         getContentResolver()) + Util.EXTENSION_ARCHIVO_FOTO;
                         animador.hacerZoomImagenLista(ruta, view.findViewById(R.id.foto),
                                 findViewById(R.id.imagen_ampliada),
-                                Util.obtenerDimensionesFraccionPantalla(getResources(),
-                                        RELACION_IMAGEN_ZOOM_PANTALLA));
+                                findViewById(R.id.contenedor).getHeight() /
+                                        RELACION_IMAGEN_ZOOM_PANTALLA);
                         cursor.close();
                     } else {
                         //Si es la primera vez que se pulsa la imagen, actualiza el mapa
@@ -636,9 +636,6 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         switch (requestCode) {
 
             case PERMISO_ACCESO_UBICACION:
-                //Parece redundante checar dos veces que exista el permiso, pero Android exige que
-                //se el permiso se demuestre explicitamente para llamar al metodo
-                //getLastKnownLocation
                 if (!(grantResults.length > 0 && grantResults[0] ==
                         PackageManager.PERMISSION_GRANTED)){
                     Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
@@ -649,10 +646,10 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             case ManejadorPermisos.PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO:
                 if (grantResults.length > 0 && grantResults[0] ==
                         PackageManager.PERMISSION_GRANTED) {
+                    iniciarListaSiEsPosible();
+                } else{
                     Toast.makeText(this, getString(R.string.permiso_almacenamiento_denegado),
                             Toast.LENGTH_LONG).show();
-                } else{
-                    iniciarListaSiEsPosible();
                 }
                 break;
 

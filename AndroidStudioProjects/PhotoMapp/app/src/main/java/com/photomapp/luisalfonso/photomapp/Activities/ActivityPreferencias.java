@@ -20,7 +20,8 @@ public class ActivityPreferencias extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         //Se utiliza el SettingsFragment para mostrar las preferencias
-        getFragmentManager().beginTransaction().replace(android.R.id.content, new FragmentPreferencias()).commit();
+        getFragmentManager().beginTransaction().replace(android.R.id.content,
+                new FragmentPreferencias()).commit();
     }
 
 }

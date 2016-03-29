@@ -16,10 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clase AdaptadorListaFotos: Adaptador que llena una RecyclerView para mostrar las fotos debajo del GoogleMap en la
- * ActivityMapa.
+ * Clase AdaptadorListaFotos: Adaptador que llena una RecyclerView para mostrar las fotos debajo del
+ * GoogleMap en lamActivityMapa.
  */
-public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFotos.ContenedorFotos>  {
+public class AdaptadorListaFotos extends
+        RecyclerView.Adapter<AdaptadorListaFotos.ContenedorFotos>  {
 
     //Rutas de las fotos
     public ArrayList<String> rutas_fotos = new ArrayList<>();
@@ -41,9 +42,10 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
         items_seleccionados = new SparseBooleanArray();
 
         for (String nombres_foto : nombres_fotos) {
-            rutas_fotos.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + File.separator +
-                    Util.NOMBRE_ALBUM_FOTOS + File.separator + nombres_foto +
-                    Util.EXTENSION_ARCHIVO_FOTO);
+            rutas_fotos.add(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) +
+                            File.separator + Util.NOMBRE_ALBUM_FOTOS + File.separator +
+                            nombres_foto + Util.EXTENSION_ARCHIVO_FOTO);
         }
 
         //Iniciamos el lector de las imagenes
@@ -52,8 +54,9 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
 
     @Override
     public AdaptadorListaFotos.ContenedorFotos onCreateViewHolder(ViewGroup parent, int viewType) {
-        //Cada que se crea una vista nueva en el RecyclerView se infla el layout elemento_lista_fotos en como holder
-        View layout_fotos = LayoutInflater.from(parent.getContext()).inflate(R.layout.elemento_lista_fotos, parent, false);
+        //Por cada vista del RecyclerView se infla su holder
+        View layout_fotos = LayoutInflater.from(parent.getContext()).inflate(
+                R.layout.elemento_lista_fotos, parent, false);
         return new ContenedorFotos(layout_fotos);
     }
 
@@ -63,7 +66,8 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
         //Declaramos si esta activado o no (seleccionado) para pintar su background
         contenedor_imagen.setActivated(items_seleccionados.get(position));
         //Cuando un holder esta listo, se pobla el layout de la imagen con su foto correspondiente
-        lector_imagenes.extraerImagenListaEn(activity_padre, contenedor_imagen, rutas_fotos.get(position));
+        lector_imagenes.extraerImagenListaEn(activity_padre, contenedor_imagen,
+                rutas_fotos.get(position));
     }
 
     @Override
@@ -72,8 +76,8 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
     }
 
     /**
-     * Interface EventosAdaptadorListener: Por default, el RecyclerView no cuenta con OnItemClickListener, por lo que nosotros lo
-     * creamos a traves del adaptador.
+     * Interface EventosAdaptadorListener: Por default, el RecyclerView no cuenta con
+     * OnItemClickListener, por lo que nosotros lo creamos a traves del adaptador.
      */
     public interface EventosAdaptadorListener {
         void itemClick(View view , int position);
@@ -89,7 +93,8 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
     }
 
     /**
-     * cambiarEstadoSeleccion: Cambia el estado del item en la posicion establecida entre seleccionado y no seleccionado
+     * cambiarEstadoSeleccion: Cambia el estado del item en la posicion establecida entre
+     * seleccionado y no seleccionado
      * @param posicion int correspondiente al index del item
      */
     public void cambiarEstadoSeleccion(int posicion){
@@ -148,10 +153,11 @@ public class AdaptadorListaFotos extends RecyclerView.Adapter<AdaptadorListaFoto
     }
 
     /**
-     * Clase ContenedorFotos: Clase auxiliar que utilizamos como ViewHolder pero indicamos los recursos que utilizaaremos
-     * (un ImageView para la foto).
+     * Clase ContenedorFotos: Clase auxiliar que utilizamos como ViewHolder pero indicamos los
+     * recursos que utilizaaremos (un ImageView para la foto).
      */
-    public class ContenedorFotos extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
+    public class ContenedorFotos extends RecyclerView.ViewHolder implements View.OnClickListener,
+            View.OnLongClickListener {
 
         //Contenedor para la foto
         private ImageView contenedor_imagen;

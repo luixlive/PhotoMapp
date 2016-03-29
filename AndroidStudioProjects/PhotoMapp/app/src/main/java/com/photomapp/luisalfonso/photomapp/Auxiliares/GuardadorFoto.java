@@ -5,8 +5,6 @@ import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.util.Log;
 
-import com.photomapp.luisalfonso.photomapp.Fragments.ManejadorCPImagenes;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

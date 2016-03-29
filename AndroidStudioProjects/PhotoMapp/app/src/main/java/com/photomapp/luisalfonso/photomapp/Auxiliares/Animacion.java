@@ -28,7 +28,7 @@ public class Animacion {
 
     //Variables necesarias para hacer y quitar zoom
     private Rect contornos_iniciales;
-    private float escala_final_inicial;
+    private float escala_final;
     private View contenedor_pequeno;
     private View contenedor_grande;
 
@@ -133,7 +133,7 @@ public class Animacion {
         animador_actual = set_animacion;
 
         // Al hacer click en la imagen, se regresa el zoom
-        escala_final_inicial = escala_inicial;
+        escala_final = escala_inicial;
         contenedor_grande.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -161,8 +161,8 @@ public class Animacion {
         set_animacion
                 .play(ObjectAnimator.ofFloat(contenedor_grande, View.X, contornos_iniciales.left))
                 .with(ObjectAnimator.ofFloat(contenedor_grande, View.Y, contornos_iniciales.top))
-                .with(ObjectAnimator.ofFloat(contenedor_grande, View.SCALE_X, escala_final_inicial))
-                .with(ObjectAnimator.ofFloat(contenedor_grande, View.SCALE_Y, escala_final_inicial));
+                .with(ObjectAnimator.ofFloat(contenedor_grande, View.SCALE_X, escala_final))
+                .with(ObjectAnimator.ofFloat(contenedor_grande, View.SCALE_Y, escala_final));
         set_animacion.setDuration(duracion_animacion);
         set_animacion.setInterpolator(new DecelerateInterpolator());
         set_animacion.addListener(new AnimatorListenerAdapter() {

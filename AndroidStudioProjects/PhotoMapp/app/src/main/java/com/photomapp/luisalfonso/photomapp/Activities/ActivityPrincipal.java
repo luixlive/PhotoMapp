@@ -220,11 +220,14 @@ public class ActivityPrincipal extends AppCompatActivity implements
      * @param foto Image obtenida por la camara al tomar la foto
      */
     private void obtenerYMostrarFotoTomada(Image foto) {
+        View contenedor_camara = findViewById(R.id.contenedor_texture);
         manejador_foto = new ManejadorFotoTomada(
                 foto,
-                findViewById(R.id.contenedor_texture),
+                contenedor_camara,
                 findViewById(R.id.foto_tomada),
-                getResources().getInteger(android.R.integer.config_shortAnimTime)
+                getResources().getInteger(android.R.integer.config_shortAnimTime),
+                contenedor_camara.getHeight(),
+                contenedor_camara.getWidth()
         );
         manejador_foto.setManejadorFotoTomadaListener(
                 new ManejadorFotoTomada.ManejadorFotoTomadaListener() {

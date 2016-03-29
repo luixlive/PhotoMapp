@@ -5,9 +5,10 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 
 /**
- * Clase ActivitySplash: su unica tarea es mostrar el logo de la app al abrir la aplicacion, para dar unos
- * segundos a que la activity inicial cargue que el usuario no tenga que esperar viendo una pantalla blanca.
- * La pantalla de Splash se define en splash_background en la carpeta drawable y se agrega a la activity en el manifest.
+ * Clase ActivitySplash: su unica tarea es mostrar el logo de la app al abrir la aplicacion, para
+ * dar unos segundos a que la activity inicial cargue y que el usuario no tenga que esperar viendo
+ * una pantalla blanca. La pantalla de Splash se define en splash_background en la carpeta drawable
+ * y se agrega a la activity en el manifest.
  */
 public class ActivitySplash extends AppCompatActivity {
 
