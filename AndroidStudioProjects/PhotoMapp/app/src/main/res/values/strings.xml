@@ -54,18 +54,23 @@
     <!-- Formato texto -->
     <string name="nombre_foto_formato_fecha">ddMMyyyyHHmmss</string>
     <string name="base_datos_formato_fecha">dd-MM-yyyy</string>
+    <string name="ejemplo_nombre_autocompletado">ddmmaaaahhmmPhotoMapp</string>
+
 
     <!-- Leyendas -->
     <string name="texto_direccion">Dirección</string>
     <string name="texto_ciudad">Ciudad</string>
     <string name="texto_fecha">Fecha</string>
 
-    <!-- Palabras -->
+    <!-- Items menus -->
     <string name="borrar">Borrar</string>
-    <string name="actualizado">Actualizado</string>
+    <string name="galeria">Ver en Galería</string>
     <string name="editar">Editar</string>
+    <string name="mapas">Ver en Mapas</string>
+
+    <!-- Palabras descripciones -->
+    <string name="actualizado">Actualizado</string>
     <string name="aceptar">Aceptar</string>
     <string name="cancelar">Cancelar</string>
-    <string name="galeria">Ver en Galería</string>
 
 </resources>

@@ -88,7 +88,7 @@ public class AdaptadorListaFotos extends
      * setOnItemClickListener: Inicializa el OnItemClickListener
      * @param listener onbjeto ImagenPulsadaListener que utilizaremos
      */
-    public void setOnItemClickListener(final EventosAdaptadorListener listener){
+    public void setEventosAdaptadorListener(final EventosAdaptadorListener listener){
         this.listener = listener;
     }
 

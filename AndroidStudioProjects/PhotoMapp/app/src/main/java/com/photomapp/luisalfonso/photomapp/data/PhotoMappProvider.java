@@ -10,7 +10,8 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 
 /**
- * Clase PhotoMappProvider: ContentProvider para obtener acceder a la informacion de las fotos dentro de la app.
+ * Clase PhotoMappProvider: ContentProvider para acceder a la informacion de las fotos dentro de la
+ * app.
  */
 public class PhotoMappProvider extends ContentProvider {
 
@@ -44,13 +45,21 @@ public class PhotoMappProvider extends ContentProvider {
     }
 
     @Override
-    public Cursor query(@NonNull Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
+    public Cursor query(@NonNull Uri uri, String[] projection, String selection,
+                        String[] selectionArgs, String sortOrder) {
         Cursor cursor_retorno;
-        //Se analiza el uri del query, de existir se pasa el query a la base de datos y se regresa el cursor recibido
+        //Se analiza el uri del query, de existir se pasa el query a la base de datos y se
+        //regresa el cursor recibido
         switch (uri_matcher.match(uri)) {
             case FOTO:
-                cursor_retorno = photomapp_db_opener_helper.getReadableDatabase().query(ContratoPhotoMapp.Fotos.NOMBRE_TABLA,
-                        projection, selection, selectionArgs, null, null, sortOrder);
+                cursor_retorno = photomapp_db_opener_helper.getReadableDatabase().query(
+                        ContratoPhotoMapp.Fotos.NOMBRE_TABLA,
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown uri: " + uri);
@@ -113,7 +122,10 @@ public class PhotoMappProvider extends ContentProvider {
         if ( null == selection ) selection = "1";
         switch (match) {
             case FOTO:
-                filas_eliminadas = base_datos.delete(ContratoPhotoMapp.Fotos.NOMBRE_TABLA, selection, selectionArgs);
+                filas_eliminadas = base_datos.delete(
+                        ContratoPhotoMapp.Fotos.NOMBRE_TABLA,
+                        selection,
+                        selectionArgs);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown uri: " + uri);
@@ -123,14 +135,15 @@ public class PhotoMappProvider extends ContentProvider {
             if (getContext() != null) {
                 getContext().getContentResolver().notifyChange(uri, null);
             } else{
-                Log.w(LOG_TAG, "Se necesita acceder al ContentResolver pero getContext regresa null");
+                Log.w(LOG_TAG, "getContext regresa null");
             }
         }
         return filas_eliminadas;
     }
 
     @Override
-    public int update(@NonNull Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+    public int update(@NonNull Uri uri, ContentValues values, String selection,
+                      String[] selectionArgs) {
         final SQLiteDatabase base_datos = photomapp_db_opener_helper.getWritableDatabase();
         final int match = uri_matcher.match(uri);
         int filas_actualizadas;
@@ -138,7 +151,11 @@ public class PhotoMappProvider extends ContentProvider {
         //Se analiza el uri y se modifican los registros
         switch (match) {
             case FOTO:
-                filas_actualizadas = base_datos.update(ContratoPhotoMapp.Fotos.NOMBRE_TABLA, values, selection, selectionArgs);
+                filas_actualizadas = base_datos.update(
+                        ContratoPhotoMapp.Fotos.NOMBRE_TABLA,
+                        values,
+                        selection,
+                        selectionArgs);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown uri: " + uri);
@@ -148,7 +165,7 @@ public class PhotoMappProvider extends ContentProvider {
             if (getContext() != null) {
                 getContext().getContentResolver().notifyChange(uri, null);
             } else{
-                Log.w(LOG_TAG, "Se necesita acceder al ContentResolver pero getContext regresa null");
+                Log.w(LOG_TAG, "getContext regresa null");
             }
         }
         return filas_actualizadas;

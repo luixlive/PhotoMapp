@@ -7,8 +7,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp.Fotos;
 
 /**
- * Clase BaseDatos: Crea y mantiene actualizada la base de datos de la app donde se almacena el nombre de la foto, la fecha
- * en que se tomo y la ubicacion.
+ * Clase BaseDatos: Crea y mantiene actualizada la base de datos de la app donde se almacena el
+ * nombre de la foto, la fecha en que se tomo y la ubicacion.
  */
 public class BaseDatos extends SQLiteOpenHelper {
 
@@ -22,7 +22,8 @@ public class BaseDatos extends SQLiteOpenHelper {
     private static final String SEPARACION_COMA     = ",";
 
     //Comando de SQLite para crear la tabla
-    private static final String SQL_CREAR_TABLA_FOTOS = "CREATE TABLE " + Fotos.NOMBRE_TABLA + " (" +
+    private static final String SQL_CREAR_TABLA_FOTOS =
+            "CREATE TABLE " + Fotos.NOMBRE_TABLA + " (" +
             Fotos._ID + " INTEGER PRIMARY KEY," +
             Fotos.COLUMNA_NOMBRE + TIPO_TEXTO + SEPARACION_COMA +
             Fotos.COLUMNA_FECHA + TIPO_TEXTO + SEPARACION_COMA +

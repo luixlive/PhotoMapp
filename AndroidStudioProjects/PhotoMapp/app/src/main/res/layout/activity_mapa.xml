@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/contenedor"
+    android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:weightSum="4">
 
-    <LinearLayout android:orientation="vertical" android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:weightSum="4">
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:id="@+id/contenedor"
+        android:layout_weight="3">
 
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="3">
+            android:layout_height="match_parent">
 
             <fragment xmlns:android="http://schemas.android.com/apk/res/android"
                 xmlns:tools="http://schemas.android.com/tools"
@@ -27,7 +29,7 @@
                 android:text="@string/texto_direccion"
                 android:id="@+id/direccion_imagen"
                 android:layout_alignParentEnd="true"
-                android:visibility="invisible"/>
+                android:visibility="gone"/>
 
             <TextView
                 style="@style/TextoDescripcionImagen"
@@ -35,7 +37,7 @@
                 android:id="@+id/ciudad_imagen"
                 android:layout_alignParentEnd="true"
                 android:layout_below="@+id/direccion_imagen"
-                android:visibility="invisible" />
+                android:visibility="gone" />
 
             <TextView
                 style="@style/TextoDescripcionImagen"
@@ -43,7 +45,7 @@
                 android:id="@+id/fecha_imagen"
                 android:layout_below="@+id/ciudad_imagen"
                 android:layout_alignParentEnd="true"
-                android:visibility="invisible" />
+                android:visibility="gone" />
 
             <ImageButton
                 android:layout_width="wrap_content"
@@ -56,41 +58,28 @@
                 android:paddingEnd="3dp"
                 android:paddingStart="3dp"
                 android:paddingBottom="3dp"
-                android:visibility="invisible"
+                android:visibility="gone"
                 android:onClick="mostrarDirecciones"
                 android:contentDescription="@string/descripcion_icono_direcciones" />
 
         </RelativeLayout>
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:background="@color/colorAccent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
-        <android.support.v7.widget.RecyclerView
-            android:id="@+id/lista_fotos"
-            android:scrollbars="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"/>
-
-        </FrameLayout>
-
-    </LinearLayout>
-
-    <LinearLayout android:orientation="vertical" android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:weightSum="4">
-
         <ImageView
             android:id="@+id/imagen_ampliada"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
+            android:layout_height="match_parent"
             android:visibility="invisible"
-            android:layout_weight="3"
             android:contentDescription="@string/descripcion_foto_grande" />
 
-    </LinearLayout>
 
-</FrameLayout>
+    </FrameLayout>
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/lista_fotos"
+        android:scrollbars="vertical"
+        android:background="@color/colorAccent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+</LinearLayout>

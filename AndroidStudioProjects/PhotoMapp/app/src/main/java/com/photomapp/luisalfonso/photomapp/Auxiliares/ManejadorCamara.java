@@ -57,6 +57,9 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     private static final int ORIENTACION_PORTRAIT = 90;
     private static final int CAMARA_TIEMPO_ESPERA = 2500;
 
+    //Bandera para saber si el proceso esta corriendo actualmente
+    private boolean proceso_iniciado = false;
+
     //Listener al que se le comunican los cambios
     private TomarFotoListener listener;
 
@@ -241,11 +244,14 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
      * iniciar: Inicia el proceso de captura de imagen.
      */
     public void iniciar() {
-        iniciarHiloBackground();
-        if (contenedor_imagenes.isAvailable()) {
-            abrirCamara();
-        } else {
-            contenedor_imagenes.setSurfaceTextureListener(this);
+        if (!proceso_iniciado) {
+            iniciarHiloBackground();
+            if (contenedor_imagenes.isAvailable()) {
+                abrirCamara();
+            } else {
+                contenedor_imagenes.setSurfaceTextureListener(this);
+            }
+            proceso_iniciado = true;
         }
     }
 
@@ -253,8 +259,11 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
      * terminar: Termina los procesos de background y cierra la camara.
      */
     public void terminar() {
-        cerrarCamara();
-        terminarHiloBackground();
+        if (proceso_iniciado) {
+            cerrarCamara();
+            terminarHiloBackground();
+            proceso_iniciado = false;
+        }
     }
 
     /**
@@ -284,9 +293,11 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
 
             //Abrimos la camara utilizando el handler y nos apoyamos de un semaforo para bloquear
             //apertura y cerrado de la camara
-            CameraManager administrador_camaras = (CameraManager) activity_padre.getSystemService(Context.CAMERA_SERVICE);
+            CameraManager administrador_camaras =
+                    (CameraManager)activity_padre.getSystemService(Context.CAMERA_SERVICE);
             try {
-                if (!semaforo_abrir_cerrar_camara.tryAcquire(CAMARA_TIEMPO_ESPERA, TimeUnit.MILLISECONDS)) {
+                if (!semaforo_abrir_cerrar_camara.tryAcquire(CAMARA_TIEMPO_ESPERA,
+                        TimeUnit.MILLISECONDS)) {
                     Log.e(LOG_TAG, "Demasiado tiempo esperando a la camara.");
                 }
                 if (id_camara != null) {
@@ -296,43 +307,48 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                 Log.e(LOG_TAG, "No se puede acceder a la camara: ");
                 e.printStackTrace();
             } catch (InterruptedException e) {
-                Log.e(LOG_TAG, "Se destruyo el hilo de la activity mientras se trataba de adquirir el semaforo: ");
+                Log.e(LOG_TAG, "Se destruyo el hilo de la activity mientras se trataba de " +
+                        "adquirir el semaforo: ");
                 e.printStackTrace();
             }
         }
     }
 
     /**
-     * obtenerCaracteristicasCamara: obtenemos las caracteristicas de la camara principal del smartphone y con
-     * estas prepara las variables para mostrar, capturar y guardar imagenes.
+     * obtenerCaracteristicasCamara: obtenemos las caracteristicas de la camara principal del
+     * smartphone y con estas prepara las variables para mostrar, capturar y guardar imagenes.
      * @return id de la camara principal.
      */
     private String obtenerCaracteristicasCamara() {
         //Obtenemos las caracteristicas de la camara principal
-        CameraManager administrador_camaras = (CameraManager) activity_padre.getSystemService(Context.CAMERA_SERVICE);
+        CameraManager administrador_camaras =
+                (CameraManager) activity_padre.getSystemService(Context.CAMERA_SERVICE);
         try {
             String id_camara_1 = administrador_camaras.getCameraIdList()[0];
-            CameraCharacteristics caracteristicas_camara = administrador_camaras.getCameraCharacteristics(id_camara_1);
-            StreamConfigurationMap configuraciones =
-                    caracteristicas_camara.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            CameraCharacteristics caracteristicas_camara =
+                    administrador_camaras.getCameraCharacteristics(id_camara_1);
+            StreamConfigurationMap configuraciones = caracteristicas_camara.get(
+                    CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             if (configuraciones == null) {
                 return null;
             }
 
             //Usamos el tamano de imagen mas grande para las fotografias tomadas
-            Size mas_grande = Collections.max(Arrays.asList(configuraciones.getOutputSizes(ImageFormat.JPEG)),
+            Size mas_grande =
+                    Collections.max(Arrays.asList(configuraciones.getOutputSizes(ImageFormat.JPEG)),
                     new CompararTamanosPorArea());
 
             //Configuramos al lector de las imagenes tomadas por la camara
-            lector_imagen_fija = ImageReader.newInstance(mas_grande.getWidth(), mas_grande.getHeight(),
-                    ImageFormat.JPEG, 2);
+            lector_imagen_fija = ImageReader.newInstance(mas_grande.getWidth(),
+                    mas_grande.getHeight(), ImageFormat.JPEG, 2);
             lector_imagen_fija.setOnImageAvailableListener(imagen_disponible_listener, handler);
 
             //Obtenemos el tamano necesario del Surface
             tam_surface = configuraciones.getOutputSizes(SurfaceTexture.class)[0];
 
             //Verificamos si el hardware cuenta con flash
-            Boolean flash_disponible = caracteristicas_camara.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+            Boolean flash_disponible =
+                    caracteristicas_camara.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
             soporta_flash = flash_disponible == null ? false : flash_disponible;
 
             return id_camara_1;
@@ -344,29 +360,31 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     }
 
     /**
-     * comenzarCapturaImagen: Configura el tamano de la Surface, inicia el constructor y crea un CaptureSession a
-     * traves de un listener para comenzar con las capturas de imagen.
+     * comenzarCapturaImagen: Configura el tamano de la Surface, inicia el constructor y crea un
+     * CaptureSession a traves de un listener para comenzar con las capturas de imagen.
      */
     private void comenzarCapturaImagen() {
         try {
             //Configuramos el tamano del surface y obtenemos una instancia tipo Surface
             SurfaceTexture surface_texture = contenedor_imagenes.getSurfaceTexture();
             if (surface_texture != null) {
-                surface_texture.setDefaultBufferSize(tam_surface.getWidth(), tam_surface.getHeight());
+                surface_texture.setDefaultBufferSize(tam_surface.getWidth(),
+                        tam_surface.getHeight());
             }
             Surface surface = new Surface(surface_texture);
 
-            //Obtenemos el constructor tipo CaptureRequest.Builder y le decimos que la salida sera el surface
+            //Obtenemos el constructor de CaptureRequest y le decimos que la salida sera el surface
             constructor_imagen_preview = camara.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             constructor_imagen_preview.addTarget(surface);
 
-            //Creamos una CaptureSession, cuando termine de configurarse comenzamos a actualizar las capturas
-            //en el surface
+            //Creamos una CaptureSession, cuando termine de configurarse comenzamos a actualizar
+            //las capturas en el surface
             camara.createCaptureSession(Arrays.asList(surface, lector_imagen_fija.getSurface()),
                     new CameraCaptureSession.StateCallback() {
 
                         @Override
-                        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                        public void onConfigured(
+                                @NonNull CameraCaptureSession cameraCaptureSession) {
                             if (null == camara) {
                                 return;
                             }
@@ -375,10 +393,11 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
                         }
 
                         @Override
-                        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                        public void onConfigureFailed(
+                                @NonNull CameraCaptureSession cameraCaptureSession) {
                             Toast.makeText(activity_padre, activity_padre.getString(R.string.captura_imagen_fallida),
                                     Toast.LENGTH_LONG).show();
-                            Log.w(LOG_TAG, "No se pudo iniciar la sesion de capturas para la preview.");
+                            Log.w(LOG_TAG, "No se pudo iniciar la sesion para la preview.");
                         }
                     }, null
             );
@@ -394,12 +413,14 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     private void actualizarCapturaImagen() {
         try {
             //Configuramos el constructor como autoenfoque y autoflash
-            constructor_imagen_preview.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+            constructor_imagen_preview.set(CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             configurarAutoFlash(constructor_imagen_preview);
 
-            //Enviamos un request para comenzar a recibir imagenes de forma repetitiva usando el handler
+            //Request para comenzar a recibir imagenes de forma repetitiva usando el handler
             solicitud_foto = constructor_imagen_preview.build();
-            sesion_captura_imagen.setRepeatingRequest(solicitud_foto, captura_imagen_listener, handler);
+            sesion_captura_imagen.setRepeatingRequest(solicitud_foto, captura_imagen_listener,
+                    handler);
         } catch (CameraAccessException e) {
             Log.w(LOG_TAG, "No se puede acceder a la camara para enviar el request del preview: ");
             e.printStackTrace();
@@ -407,23 +428,25 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     }
 
     /**
-     * enfocar: cambia el estado actual de la camara y vuelve a llamar a la sesion de captura para que haga las
-     * acciones necesarias de enfoque por medio del handler.
+     * enfocar: cambia el estado actual de la camara y vuelve a llamar a la sesion de captura para
+     * que haga las acciones necesarias de enfoque por medio del handler.
      */
     private void enfocar() {
         try {
             //Actualiza el constructor, el estado y pide la captura por medio de la sesion
-            constructor_imagen_preview.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+            constructor_imagen_preview.set(CaptureRequest.CONTROL_AF_TRIGGER,
+                    CameraMetadata.CONTROL_AF_TRIGGER_START);
             estado_actual_camara = ESTADO_ESPERANDO_ENFOQUE;
-            sesion_captura_imagen.capture(constructor_imagen_preview.build(), captura_imagen_listener, handler);
+            sesion_captura_imagen.capture(constructor_imagen_preview.build(),
+                    captura_imagen_listener, handler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * tomarSecuenciaPrecaptura: Inicia una precaptura y vuelve a llamar a la sesion de captura para que haga las
-     * acciones necesarias para configurar la exposicion por medio del handler.
+     * tomarSecuenciaPrecaptura: Inicia una precaptura y vuelve a llamar a la sesion de captura
+     * para que haga las acciones necesarias para configurar la exposicion por medio del handler.
      */
     private void tomarSecuenciaPrecaptura() {
         try {
@@ -431,15 +454,16 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
             constructor_imagen_preview.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             estado_actual_camara = ESTADO_ESPERANDO_PRECAPTURA;
-            sesion_captura_imagen.capture(constructor_imagen_preview.build(), captura_imagen_listener, handler);
+            sesion_captura_imagen.capture(constructor_imagen_preview.build(),
+                    captura_imagen_listener, handler);
         } catch (CameraAccessException e) {
             Log.w(LOG_TAG, "No se pudo acceder a la camara para iniciar la secuencia de precaptura.");
         }
     }
 
     /**
-     * tomarFoto: Hace las configuraciones finales con un constructor de foto y toma la foto, despues la manda a
-     * guardar.
+     * tomarFoto: Hace las configuraciones finales con un constructor de foto y toma la foto,
+     * despues la manda a guardar.
      */
     private void tomarFoto() {
         try {
@@ -451,10 +475,12 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
             final CaptureRequest.Builder constructor_imagen_foto =
                     camara.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
 
-            //Configura el autoenfoque, autoflash, orientacion de la foto (actualmente solo portrait) y el lector
-            //de imagen fija para que guarde la fotografia tomada en la ruta de archivo
+            //Configura el autoenfoque, autoflash, orientacion de la foto (actualmente solo
+            //portrait) y el lector de imagen fija para que guarde la fotografia tomada en la ruta
+            // de archivo
             constructor_imagen_foto.addTarget(lector_imagen_fija.getSurface());
-            constructor_imagen_foto.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+            constructor_imagen_foto.set(CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             configurarAutoFlash(constructor_imagen_foto);
             constructor_imagen_foto.set(CaptureRequest.JPEG_ORIENTATION, ORIENTACION_PORTRAIT);
 
@@ -472,22 +498,25 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
      */
     private void dejarDeEnfocar() {
         try {
-            //Vuelve a poner el constructor en las configuraciones iniciales y solicita una sesion repetitiva
-            //nuevamente
-            constructor_imagen_preview.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
+            //Vuelve a poner el constructor en las configuraciones iniciales y solicita una sesion
+            //repetitiva nuevamente
+            constructor_imagen_preview.set(CaptureRequest.CONTROL_AF_TRIGGER,
+                    CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             configurarAutoFlash(constructor_imagen_preview);
-            sesion_captura_imagen.capture(constructor_imagen_preview.build(), captura_imagen_listener, handler);
+            sesion_captura_imagen.capture(constructor_imagen_preview.build(),
+                    captura_imagen_listener, handler);
             estado_actual_camara = ESTADO_PREVIEW;
-            sesion_captura_imagen.setRepeatingRequest(solicitud_foto, captura_imagen_listener, handler);
+            sesion_captura_imagen.setRepeatingRequest(solicitud_foto, captura_imagen_listener,
+                    handler);
         } catch (CameraAccessException e) {
-            Log.w(LOG_TAG, "No se pudo acceder a la camara para dejar de enfocar y regresar al modo preview: ");
+            Log.w(LOG_TAG, "No se pudo dejar de enfocar y regresar al modo preview: ");
             e.printStackTrace();
         }
     }
 
     /**
-     * cerrarCamara: Cierra las instancias de la camara, sesion de captura y lector de imagen, bloqueando el
-     * semaforo.
+     * cerrarCamara: Cierra las instancias de la camara, sesion de captura y lector de imagen,
+     * bloqueando el semaforo.
      */
     private void cerrarCamara() {
         try {
@@ -513,17 +542,19 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     }
 
     /**
-     * configurarAutoFlash: verifica la variable que indica si el hardware cuenta con flash y configura el
-     * constructor del request para solicitar el autoflash.
+     * configurarAutoFlash: verifica la variable que indica si el hardware cuenta con flash y
+     * configura el constructor del request para solicitar el autoflash.
      * @param constructor_request el constructor que se va  aconfigurar como autoflash
      */
     private void configurarAutoFlash(CaptureRequest.Builder constructor_request) {
-        if (soporta_flash && preferencia_usuario_flash)
-            constructor_request.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+        if (soporta_flash && preferencia_usuario_flash) {
+            constructor_request.set(CaptureRequest.CONTROL_AE_MODE,
+                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+        }
     }
 
     /**
-     * iniciarHiloBackground: Obtiene una instancia Handler y la asigna a la global handler para su uso.
+     * iniciarHiloBackground: Obtiene una instancia Handler y la asigna a la global handler.
      */
     private void iniciarHiloBackground() {
         hilo_background = new HandlerThread(activity_padre.getString(R.string.nombre_hilo_camara));
@@ -562,7 +593,8 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
         @Override
         public int compare(Size lhs, Size rhs) {
             //Regresa la resta de las areas
-            return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
+            return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() *
+                    rhs.getHeight());
         }
 
     }

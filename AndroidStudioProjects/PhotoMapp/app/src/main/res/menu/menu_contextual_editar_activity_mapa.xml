@@ -14,7 +14,7 @@
 
     <item android:id="@+id/mapas"
         android:icon="@mipmap/ic_direcciones_blanco"
-        android:title="@string/galeria"
+        android:title="@string/mapas"
         app:showAsAction="ifRoom"/>
 
 </menu>

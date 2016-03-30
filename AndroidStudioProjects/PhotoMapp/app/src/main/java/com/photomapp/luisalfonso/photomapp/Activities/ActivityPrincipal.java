@@ -112,9 +112,13 @@ public class ActivityPrincipal extends AppCompatActivity implements
                     preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_FLASH_KEY,
                             false)
             );
+        } else {
+            ManejadorPermisos.checarPermisoCamara(this);
         }
         if (manejador_ubicacion != null) {
             manejador_ubicacion.comenzarActualizacionUbicacion();
+        } else{
+            ManejadorPermisos.checarPermisoUbicacion(this);
         }
     }
 
@@ -167,8 +171,8 @@ public class ActivityPrincipal extends AppCompatActivity implements
                                                 getString(R.string.toast_foto_tomada),
                                                 Toast.LENGTH_SHORT).show();
                                         obtenerYMostrarFotoTomada(foto);
-                                 } else {
-                                       Toast.makeText(getApplicationContext(),
+                                    } else {
+                                        Toast.makeText(getApplicationContext(),
                                                 getString(R.string.no_escritura_posible),
                                                 Toast.LENGTH_SHORT).show();
                                     }
@@ -220,7 +224,7 @@ public class ActivityPrincipal extends AppCompatActivity implements
      * @param foto Image obtenida por la camara al tomar la foto
      */
     private void obtenerYMostrarFotoTomada(Image foto) {
-        View contenedor_camara = findViewById(R.id.contenedor_texture);
+        View contenedor_camara = findViewById(R.id.contenedor_imagen_camara);
         manejador_foto = new ManejadorFotoTomada(
                 foto,
                 contenedor_camara,
@@ -260,14 +264,14 @@ public class ActivityPrincipal extends AppCompatActivity implements
                                     manejador_foto.quitarFotoMostrada();
                                 }
 
-                             }.execute();
+                            }.execute();
                         }
                         //Si no eligio autonombrar se muestra un dialogo para que elija el nombre
                         else {
                             DialogoNombreFoto dialogo_nombre_foto =
                                     DialogoNombreFoto.nuevoDialogo(nombre_foto);
-                                dialogo_nombre_foto.show(getFragmentManager(),
-                                        DialogoNombreFoto.class.getName());
+                            dialogo_nombre_foto.show(getFragmentManager(),
+                                    DialogoNombreFoto.class.getName());
                         }
                     }
 

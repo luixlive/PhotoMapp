@@ -56,7 +56,6 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private static final String LOG_TAG = "ACTIVITY MAPA";
 
     //Macros
-    private static final int PERMISO_ACCESO_UBICACION = 1;
     private static final float ZOOM_MAPA = 18.0f;
     private static final int TIEMPO_ANIMACION_MAPA = 1000 * 3;
     private static final int IMAGEN_NO_SELECCIONADA = -1;
@@ -81,6 +80,91 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     private TextView ciudad_imagen;
     private TextView direccion_imagen;
 
+    AdaptadorListaFotos.EventosAdaptadorListener listener_click_fotos =
+            new AdaptadorListaFotos.EventosAdaptadorListener() {
+
+                @Override
+                public void itemClick(View view, int position) {
+                    //Si hay un zoom simplemente lo quitamos
+                    if (animador.quitarZoomActual()) {
+                        return;
+                    }
+                    if (modo_contextual_eliminar == null) {
+                        //Si no esta en modo contextual, al hacer click en una imagen se muestra en el
+                        //actualiza las leyendas, si es el segundo click, se hace un zoom a al imagen
+                        String[] projection = {
+                                ContratoPhotoMapp.Fotos.COLUMNA_FECHA,
+                                ContratoPhotoMapp.Fotos.COLUMNA_LATITUD,
+                                ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD
+                        };
+                        String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+
+                        //Se obtiene el id de la foto de esa posicion y se hace el query para obtener
+                        //latitud y longitud
+                        String[] args = {String.valueOf(ids_fotos.get(position))};
+                        Cursor cursor = getContentResolver().query(
+                                ContratoPhotoMapp.Fotos.CONTENT_URI,
+                                projection,
+                                clause,
+                                args,
+                                null
+                        );
+                        if (cursor == null) {
+                            Log.e(LOG_TAG, "Se retorno un cursor nulo del query al ContentProvider");
+                        } else if (cursor.getCount() < 1) {
+                            cursor.close();
+                            Log.wtf(LOG_TAG, "No se encontro la foto con el ContentProvider");
+                        } else if (imagen_seleccionada == position) {
+                            //Al ampliar un zoom hacemos las leyendas invisibles
+                            hacerLeyendasVisibles(false);
+
+                            //Si es la segunda vez que se pulsa la imagen
+                            String ruta = Util.obtenerDirectorioFotos().getPath() + File.separator +
+                                    Util.obtenerNombreImagen(ids_fotos.get(position),
+                                            getContentResolver()) + Util.EXTENSION_ARCHIVO_FOTO;
+                            animador.hacerZoomImagenLista(ruta, view.findViewById(R.id.foto),
+                                    findViewById(R.id.imagen_ampliada),
+                                    findViewById(R.id.contenedor).getHeight() /
+                                            RELACION_IMAGEN_ZOOM_PANTALLA);
+                            cursor.close();
+                        } else {
+                            //Si es la primera vez que se pulsa la imagen, actualiza el mapa
+                            imagen_seleccionada = position;
+                            cursor.moveToFirst();
+                            ubicacion_imagen_actual = new LatLng(cursor.getDouble(cursor.getColumnIndex(
+                                    ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
+                                    cursor.getDouble(cursor.getColumnIndex(
+                                            ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
+                            actualizarUbicacion(ubicacion_imagen_actual);
+                            actualizarLeyendasMapa(Util.obtenerDireccion(getApplicationContext(),
+                                            ubicacion_imagen_actual),
+                                    cursor.getString(cursor.getColumnIndex(
+                                            ContratoPhotoMapp.Fotos.COLUMNA_FECHA)));
+                            cursor.close();
+                        }
+                    } else {
+                        //Si esta en modo contextual, el click solo cambia el estado de seleccion
+                        ActivityMapa.this.cambiarEstadoSeleccion(position);
+                    }
+                }
+
+                @Override
+                public void itemLongClick(View view, int position) {
+                    //Si hay zoom quitamos el zoom e ignoramoe el click
+                    if (animador.quitarZoomActual()) {
+                        return;
+                    }
+                    //Si el modo contextual no se ha iniciado, se comienza
+                    if (modo_contextual_eliminar != null) {
+                        cambiarEstadoSeleccion(position);
+                        return;
+                    }
+                    mostrarMenuEliminar();
+                    cambiarEstadoSeleccion(position);
+                }
+            };
+
+
     //Objeto Animacion para apoyar con las animaciones
     private Animacion animador;
 
@@ -89,14 +173,26 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mapa);
 
-        crearAnimador();
-        obtenerVistasLeyendas();
-        iniciarListaSiEsPosible();
+        //Tenemos que checar primero si el usuario dio acceso a su almacenamiento externo
+        if (ManejadorPermisos.checarPermisoAlmacenamiento(this)) {
+            crearAnimador();
+            obtenerVistasLeyendas();
+            iniciarListaSiEsPosible();
+        }
         iniciarMapa();
     }
 
     @Override
-    public void nombreSeleccionado(String nombre) {
+    public void onMapReady(GoogleMap googleMap) {
+        //Obtenemos el mapa
+        mapa = googleMap;
+        if (ManejadorPermisos.checarPermisoUbicacion(this)) {
+            situarMapaPosicionActual();
+        }
+    }
+
+    @Override
+    public void nombreSeleccionado(String nombre_nuevo) {
         if (Util.obtenerEscrituraPosible()) {
             //Se actualiza el nombre en el archivo
             String nombre_viejo = Util.obtenerNombreImagen(
@@ -109,7 +205,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
                     File foto_actualizada = new File(ruta + File.separator + nombre_viejo +
                             Util.EXTENSION_ARCHIVO_FOTO);
 
-                    if (!foto_actualizada.renameTo(new File(ruta + File.separator + nombre +
+                    if (!foto_actualizada.renameTo(new File(ruta + File.separator + nombre_nuevo +
                             Util.EXTENSION_ARCHIVO_FOTO))) {
                         return;
                     }
@@ -120,7 +216,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
             String[] args = {String.valueOf(ids_fotos.get(imagen_seleccionada))};
             ContentValues nuevos_valores = new ContentValues();
-            nuevos_valores.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre);
+            nuevos_valores.put(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE, nombre_nuevo);
             int registros_actualizados = getContentResolver().update(
                     ContratoPhotoMapp.Fotos.CONTENT_URI,
                     nuevos_valores,
@@ -142,7 +238,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             ManejadorCPImagenes.actualizarImagen(
                     ruta_directorio_imagenes + File.separator + nombre_viejo +
                             Util.EXTENSION_ARCHIVO_FOTO,
-                    ruta_directorio_imagenes + File.separator + nombre +
+                    ruta_directorio_imagenes + File.separator + nombre_nuevo +
                             Util.EXTENSION_ARCHIVO_FOTO,
                     getContentResolver()
             );
@@ -155,37 +251,40 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public void onMapReady(GoogleMap googleMap) {
-        //Obtenemos el mapa
-        mapa = googleMap;
-
-        //Llevamos el mapa a la ultima ubicacion conocida del usuario hay permiso de usar ubicacion
-        if (ManejadorPermisos.checarPermisoUbicacion(this) &&
-                ActivityCompat.
-                        checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                        PackageManager.PERMISSION_GRANTED) {
-            LocationManager administrador_ubicacion =
-                    (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            Location ubicacion;
-
-            //Obtenemos la preferencia del usuario para usar GPS
-            SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
-            if (preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY, false)) {
-                ubicacion = administrador_ubicacion.getLastKnownLocation(
-                        LocationManager.GPS_PROVIDER);
-            } else {
-                ubicacion = administrador_ubicacion.getLastKnownLocation(
-                        LocationManager.NETWORK_PROVIDER);
-            }
-            actualizarUbicacion(new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude()));
-        }
-    }
-
-    @Override
     public void onBackPressed() {
         //Si existe un zoom, al presionar back se quita
         if (!animador.quitarZoomActual()) {
             super.onBackPressed();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+
+            case ManejadorPermisos.PERMISO_ACCESO_UBICACION:
+                if (grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED){
+                    situarMapaPosicionActual();
+                } else{
+                    Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
+                            Toast.LENGTH_LONG).show();
+                }
+                break;
+
+            case ManejadorPermisos.PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO:
+                if (grantResults.length > 0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED) {
+                    crearAnimador();
+                    obtenerVistasLeyendas();
+                    iniciarListaSiEsPosible();
+                } else{
+                    Toast.makeText(this, getString(R.string.permiso_almacenamiento_denegado),
+                            Toast.LENGTH_LONG).show();
+                }
+                break;
+
         }
     }
 
@@ -199,73 +298,7 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void zoomAmpliado(View v) {
                 //Al hacer zoom se abre el menu contextual foto seleccionada
-                modo_contextual_foto_seleccionada = startActionMode(new ActionMode.Callback() {
-
-                    @Override
-                    public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                        //Inicio del modo contextual
-                        getMenuInflater().inflate(R.menu.menu_contextual_editar_activity_mapa,
-                                menu);
-                        return true;
-                    }
-
-                    @Override
-                    public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                        switch ((item.getItemId())) {
-
-                            case R.id.editar:
-                                //Si pulsa editar mostramos el dialogo para editar el nombre
-                                DialogoNombreFoto dialogo =
-                                        DialogoNombreFoto.nuevoDialogo(Util.obtenerNombreImagen(
-                                                ids_fotos.get(imagen_seleccionada),
-                                                getContentResolver()));
-                                dialogo.show(getFragmentManager(),
-                                        DialogoNombreFoto.class.getName());
-                                return true;
-
-                            case R.id.galeria:
-                                //Obtenemos el id que le coloco el ContentProvider de la galeria
-                                //a la imagen
-                                String ruta_imagen = Util.obtenerDirectorioFotos() +
-                                        File.separator + Util.obtenerNombreImagen(
-                                        ids_fotos.get(imagen_seleccionada), getContentResolver()) +
-                                        Util.EXTENSION_ARCHIVO_FOTO;
-                                String id = ManejadorCPImagenes.obtenerIdImagen(ruta_imagen,
-                                        getContentResolver());
-
-                                //Si el id es valido, lo usamos para construir el uri que nos
-                                //permitira iniciar un intent para mostrar la foto en la galeria
-                                if (id != null) {
-                                    Uri uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI.
-                                            buildUpon().appendPath(id).build();
-                                    startActivity(new Intent(Intent.ACTION_VIEW, uri));
-                                } else {
-                                    Log.e(LOG_TAG, "No se obtuvo un id valido del Content " +
-                                            "Provider de la galeria");
-                                }
-                                return true;
-
-                            case R.id.mapas:
-                                mostrarDirecciones(findViewById(R.id.mapas));
-                                return true;
-
-                            default:
-                                return false;
-                        }
-                    }
-
-                    @Override
-                    public void onDestroyActionMode(ActionMode mode) {
-                        animador.quitarZoomActual();
-                        modo_contextual_foto_seleccionada = null;
-                    }
-
-                });
+                mostrarMenuImagenSeleccionada();
             }
 
             @Override
@@ -302,12 +335,9 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
      * iniciarListaSiEsPosible: Si es posible, inicia la lista con las fotos
      */
     private void iniciarListaSiEsPosible() {
-        //Tenemos que checar primero si el usuario dio acceso a su almacenamiento externo
-        if (ManejadorPermisos.checarPermisoAlmacenamiento(this)) {
-            //Despues checamos que sea posible utilizar su almacenamiento externo
-            if (Util.obtenerLecturaPosible()) {
-                mostrarListaFotos();
-            }
+        //Checamos que sea posible utilizar su almacenamiento externo
+        if (Util.obtenerLecturaPosible()) {
+            mostrarListaFotos();
         }
     }
 
@@ -409,88 +439,32 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         adaptador = new AdaptadorListaFotos(this, arreglo_nombres_imagenes);
         lista_fotos.setAdapter(adaptador);
         //Si se da click en las imagenes
-        adaptador.setOnItemClickListener(new AdaptadorListaFotos.EventosAdaptadorListener() {
+        adaptador.setEventosAdaptadorListener(listener_click_fotos);
+    }
 
-            @Override
-            public void itemClick(View view, int position) {
-                //Si hay un zoom simplemente lo quitamos
-                if (animador.quitarZoomActual()) {
-                    return;
-                }
-                if (modo_contextual_eliminar == null) {
-                    //Si no esta en modo contextual, al hacer click en una imagen se muestra en el
-                    //actualiza las leyendas, si es el segundo click, se hace un zoom a al imagen
-                    String[] projection = {
-                            ContratoPhotoMapp.Fotos.COLUMNA_FECHA,
-                            ContratoPhotoMapp.Fotos.COLUMNA_LATITUD,
-                            ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD
-                    };
-                    String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+    /**
+     * situarMapaPosicionActual
+     */
+    private void situarMapaPosicionActual(){
+        //Llevamos el mapa a la ultima ubicacion conocida del usuario hay permiso de usar ubicacion
+        if (mapa != null && ActivityCompat.
+                checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED) {
+            LocationManager administrador_ubicacion =
+                    (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+            Location ubicacion;
 
-                    //Se obtiene el id de la foto de esa posicion y se hace el query para obtener
-                    //latitud y longitud
-                    String[] args = {String.valueOf(ids_fotos.get(position))};
-                    Cursor cursor = getContentResolver().query(
-                            ContratoPhotoMapp.Fotos.CONTENT_URI,
-                            projection,
-                            clause,
-                            args,
-                            null
-                    );
-                    if (cursor == null) {
-                        Log.e(LOG_TAG, "Se retorno un cursor nulo del query al ContentProvider");
-                    } else if (cursor.getCount() < 1) {
-                        cursor.close();
-                        Log.wtf(LOG_TAG, "No se encontro la foto con el ContentProvider");
-                    } else if (imagen_seleccionada == position) {
-                        //Al ampliar un zoom hacemos las leyendas invisibles
-                        hacerLeyendasVisibles(false);
-
-                        //Si es la segunda vez que se pulsa la imagen
-                        String ruta = Util.obtenerDirectorioFotos().getPath() + File.separator +
-                                Util.obtenerNombreImagen(ids_fotos.get(position),
-                                        getContentResolver()) + Util.EXTENSION_ARCHIVO_FOTO;
-                        animador.hacerZoomImagenLista(ruta, view.findViewById(R.id.foto),
-                                findViewById(R.id.imagen_ampliada),
-                                findViewById(R.id.contenedor).getHeight() /
-                                        RELACION_IMAGEN_ZOOM_PANTALLA);
-                        cursor.close();
-                    } else {
-                        //Si es la primera vez que se pulsa la imagen, actualiza el mapa
-                        imagen_seleccionada = position;
-                        cursor.moveToFirst();
-                        ubicacion_imagen_actual = new LatLng(cursor.getDouble(cursor.getColumnIndex(
-                                ContratoPhotoMapp.Fotos.COLUMNA_LATITUD)),
-                                cursor.getDouble(cursor.getColumnIndex(
-                                        ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD)));
-                        actualizarUbicacion(ubicacion_imagen_actual);
-                        actualizarLeyendasMapa(Util.obtenerDireccion(getApplicationContext(),
-                                        ubicacion_imagen_actual),
-                                cursor.getString(cursor.getColumnIndex(
-                                        ContratoPhotoMapp.Fotos.COLUMNA_FECHA)));
-                        cursor.close();
-                    }
-                } else {
-                    //Si esta en modo contextual, el click solo cambia el estado de seleccion
-                    ActivityMapa.this.cambiarEstadoSeleccion(position);
-                }
+            //Obtenemos la preferencia del usuario para usar GPS
+            SharedPreferences preferencias = PreferenceManager.getDefaultSharedPreferences(this);
+            if (preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY, false)) {
+                ubicacion = administrador_ubicacion.getLastKnownLocation(
+                        LocationManager.GPS_PROVIDER);
+            } else {
+                ubicacion = administrador_ubicacion.getLastKnownLocation(
+                        LocationManager.NETWORK_PROVIDER);
             }
-
-            @Override
-            public void itemLongClick(View view, int position) {
-                //Si hay zoom quitamos el zoom e ignoramoe el click
-                if (animador.quitarZoomActual()) {
-                    return;
-                }
-                //Si el modo contextual no se ha iniciado, se comienza
-                if (modo_contextual_eliminar != null) {
-                    cambiarEstadoSeleccion(position);
-                    return;
-                }
-                mostrarMenuEliminar();
-                cambiarEstadoSeleccion(position);
-            }
-        });
+            actualizarUbicacion(new LatLng(ubicacion.getLatitude(), ubicacion.getLongitude()));
+        }
     }
 
     /**
@@ -630,30 +604,74 @@ public class ActivityMapa extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
-                                           @NonNull int[] grantResults) {
-        switch (requestCode) {
+    private void mostrarMenuImagenSeleccionada(){
+        modo_contextual_foto_seleccionada = startActionMode(new ActionMode.Callback() {
 
-            case PERMISO_ACCESO_UBICACION:
-                if (!(grantResults.length > 0 && grantResults[0] ==
-                        PackageManager.PERMISSION_GRANTED)){
-                    Toast.makeText(this, getString(R.string.permiso_ubicacion_denegado),
-                            Toast.LENGTH_LONG).show();
+            @Override
+            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+                //Inicio del modo contextual
+                getMenuInflater().inflate(R.menu.menu_contextual_editar_activity_mapa,
+                        menu);
+                return true;
+            }
+
+            @Override
+            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+                return false;
+            }
+
+            @Override
+            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                switch ((item.getItemId())) {
+
+                    case R.id.editar:
+                        //Si pulsa editar mostramos el dialogo para editar el nombre
+                        DialogoNombreFoto dialogo =
+                                DialogoNombreFoto.nuevoDialogo(Util.obtenerNombreImagen(
+                                        ids_fotos.get(imagen_seleccionada),
+                                        getContentResolver()));
+                        dialogo.show(getFragmentManager(),
+                                DialogoNombreFoto.class.getName());
+                        return true;
+
+                    case R.id.galeria:
+                        //Obtenemos el id que le coloco el ContentProvider de la galeria
+                        //a la imagen
+                        String ruta_imagen = Util.obtenerDirectorioFotos() +
+                                File.separator + Util.obtenerNombreImagen(
+                                ids_fotos.get(imagen_seleccionada), getContentResolver()) +
+                                Util.EXTENSION_ARCHIVO_FOTO;
+                        String id = ManejadorCPImagenes.obtenerIdImagen(ruta_imagen,
+                                getContentResolver());
+
+                        //Si el id es valido, lo usamos para construir el uri que nos
+                        //permitira iniciar un intent para mostrar la foto en la galeria
+                        if (id != null) {
+                            Uri uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI.
+                                    buildUpon().appendPath(id).build();
+                            startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                        } else {
+                            Log.e(LOG_TAG, "No se obtuvo un id valido del Content " +
+                                    "Provider de la galeria");
+                        }
+                        return true;
+
+                    case R.id.mapas:
+                        mostrarDirecciones(findViewById(R.id.mapas));
+                        return true;
+
+                    default:
+                        return false;
                 }
-                break;
+            }
 
-            case ManejadorPermisos.PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO:
-                if (grantResults.length > 0 && grantResults[0] ==
-                        PackageManager.PERMISSION_GRANTED) {
-                    iniciarListaSiEsPosible();
-                } else{
-                    Toast.makeText(this, getString(R.string.permiso_almacenamiento_denegado),
-                            Toast.LENGTH_LONG).show();
-                }
-                break;
+            @Override
+            public void onDestroyActionMode(ActionMode mode) {
+                animador.quitarZoomActual();
+                modo_contextual_foto_seleccionada = null;
+            }
 
-        }
+        });
     }
 
     /**

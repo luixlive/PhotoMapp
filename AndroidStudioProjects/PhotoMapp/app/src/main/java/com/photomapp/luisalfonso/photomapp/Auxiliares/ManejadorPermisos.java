@@ -52,24 +52,24 @@ public class ManejadorPermisos {
                 );
                 dialogo.setDecisionUsuarioListener(
                         new DialogoExplicacion.DecisionUsuarioListener() {
-                    @Override
-                    public void aceptado() {
-                        //El usuario dio acepto, iniciamos la peticion del permiso
-                        String[] permisos = { Manifest.permission.WRITE_EXTERNAL_STORAGE };
-                        ActivityCompat.requestPermissions(
-                                activity,
-                                permisos,
-                                PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO
-                        );
-                    }
+                            @Override
+                            public void aceptado() {
+                                //El usuario dio acepto, iniciamos la peticion del permiso
+                                String[] permisos = { Manifest.permission.WRITE_EXTERNAL_STORAGE };
+                                ActivityCompat.requestPermissions(
+                                        activity,
+                                        permisos,
+                                        PERMISO_ACCESO_ALMACENAMIENTO_EXTERNO
+                                );
+                            }
 
-                    @Override
-                    public void cancelado() {
-                        //El usuario decidio no dar permiso
-                        Log.w(LOG_TAG, "El usuario denego el dialogo informativo para permitir " +
-                                "acceso al almacenamiento");
-                    }
-                });
+                            @Override
+                            public void cancelado() {
+                                //El usuario decidio no dar permiso
+                                Log.w(LOG_TAG, "El usuario denego el dialogo informativo para permitir " +
+                                        "acceso al almacenamiento");
+                            }
+                        });
                 dialogo.show(activity.getFragmentManager(),
                         ETIQUETA_DIALOGO_PERMISO_ALMACENAMIENTO);
             } else {
@@ -108,24 +108,24 @@ public class ManejadorPermisos {
                 );
                 dialogo.setDecisionUsuarioListener(
                         new DialogoExplicacion.DecisionUsuarioListener() {
-                    @Override
-                    public void aceptado() {
-                        //El usuario dio acepto, iniciamos la peticion del permiso
-                        String[] permisos = { Manifest.permission.CAMERA };
-                        ActivityCompat.requestPermissions(
-                                activity,
-                                permisos,
-                                PERMISO_ACCESO_CAMARA
-                        );
-                    }
+                            @Override
+                            public void aceptado() {
+                                //El usuario dio acepto, iniciamos la peticion del permiso
+                                String[] permisos = { Manifest.permission.CAMERA };
+                                ActivityCompat.requestPermissions(
+                                        activity,
+                                        permisos,
+                                        PERMISO_ACCESO_CAMARA
+                                );
+                            }
 
-                    @Override
-                    public void cancelado() {
-                        //El usuario decidio no dar permiso
-                        Log.w(LOG_TAG, "El usuario denego el dialogo informativo para permitir " +
-                                "acceso a la cámara");
-                    }
-                });
+                            @Override
+                            public void cancelado() {
+                                //El usuario decidio no dar permiso
+                                Log.w(LOG_TAG, "El usuario denego el dialogo informativo para permitir " +
+                                        "acceso a la cámara");
+                            }
+                        });
                 dialogo.show(activity.getFragmentManager(), ETIQUETA_DIALOGO_PERMISO_CAMARA);
             } else {
                 //No tenemos permiso para acceder a la camara, lo pedimos

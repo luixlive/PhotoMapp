@@ -26,6 +26,9 @@ public class ManejadorUbicacion {
     private static final int DISTANCIA_ACTUALIZACION = 15;
     private static final int DOS_MINUTOS = 1000 * 60 * 2;
 
+    //Variable que nos ayuda a determinar si el proceso esta corriendo
+    private boolean proceso_iniciado = false;
+
     //Variables de apoyo
     private LocationManager manejador;
     private Activity activity_padre;
@@ -71,22 +74,25 @@ public class ManejadorUbicacion {
      * necesite.
      */
     public void comenzarActualizacionUbicacion() {
-        //Es necesario checar de forma explicita que se tiene el permiso (aunque ya sabemos que se
-        //tiene)
-        if (ActivityCompat.checkSelfPermission(activity_padre,
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            //Obtenemos la preferencia del usuario respecto a si quiere utilizar el GPS o no
-            SharedPreferences preferencias =
-                    PreferenceManager.getDefaultSharedPreferences(activity_padre);
-            boolean gps = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY,
-                    false);
-            if (gps) {
-                manejador.requestLocationUpdates(LocationManager.GPS_PROVIDER, TIEMPO_ACTUALIZACION,
-                        DISTANCIA_ACTUALIZACION, cambio_ubicacion_listener);
-            } else {
-                manejador.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,
-                        TIEMPO_ACTUALIZACION, DISTANCIA_ACTUALIZACION, cambio_ubicacion_listener);
+        if (!proceso_iniciado) {
+            //Es necesario checar de forma explicita que se tiene el permiso (aunque ya sabemos que se
+            //tiene)
+            if (ActivityCompat.checkSelfPermission(activity_padre,
+                    Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                //Obtenemos la preferencia del usuario respecto a si quiere utilizar el GPS o no
+                SharedPreferences preferencias =
+                        PreferenceManager.getDefaultSharedPreferences(activity_padre);
+                boolean gps = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY,
+                        false);
+                if (gps) {
+                    manejador.requestLocationUpdates(LocationManager.GPS_PROVIDER, TIEMPO_ACTUALIZACION,
+                            DISTANCIA_ACTUALIZACION, cambio_ubicacion_listener);
+                } else {
+                    manejador.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,
+                            TIEMPO_ACTUALIZACION, DISTANCIA_ACTUALIZACION, cambio_ubicacion_listener);
+                }
             }
+            proceso_iniciado = true;
         }
     }
 
@@ -94,10 +100,13 @@ public class ManejadorUbicacion {
      * detenerActualizacionUbicacion: Detiene los eventos de ubicacion.
      */
     public void detenerActualizacionUbicacion() {
-        //Se checa de forma explicita el permiso
-        if (ActivityCompat.checkSelfPermission(activity_padre,
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            manejador.removeUpdates(cambio_ubicacion_listener);
+        if (proceso_iniciado) {
+            //Se checa de forma explicita el permiso
+            if (ActivityCompat.checkSelfPermission(activity_padre,
+                    Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                manejador.removeUpdates(cambio_ubicacion_listener);
+            }
+            proceso_iniciado = false;
         }
     }
 

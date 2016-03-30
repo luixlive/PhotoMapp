@@ -2,7 +2,6 @@ package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.res.Resources;
 import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
