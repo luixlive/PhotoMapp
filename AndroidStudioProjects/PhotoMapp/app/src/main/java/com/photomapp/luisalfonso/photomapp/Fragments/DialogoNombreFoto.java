@@ -8,28 +8,30 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 
 import com.photomapp.luisalfonso.photomapp.R;
 
 /**
- * Clase DialogoNombreFoto: modela el dialogo que se muestra cada que se capture una foto para elegir el nombre
- * de la misma.
+ * Clase DialogoNombreFoto: modela el dialogo que se muestra cada que se capture una foto para
+ * elegir el nombre de la misma.
  */
 public class DialogoNombreFoto extends DialogFragment {
 
     //Macro
     private static final String KEY_TITULO_FOTO = "titulo_foto";
 
-    //Variables nombre seleccionado nos ayuda a saber cuando se cierre el dialogo si este fue cancelado o si el usuario
-    //si cambio el nombre, y el listener es la interfaz que debe implementar la Activity para recibir los callbacks
+    //Bandera para determinar si el usuario acepto cambiar el nombre
     private boolean nombre_seleccionado = false;
+
+    //Listener de los eventos del dialogo
     private NombreSeleccionadoListener listener;
 
     /**
-     * nuevoDialogo: crea una nueva instancia de un dialogo y recibe como parametro el titulo que se debe de poner por
-     * default para la foto
+     * nuevoDialogo: crea una nueva instancia de un dialogo y recibe como parametro el titulo que
+     * se debe de poner por default para la foto
      * @param titulo_foto titulo a poner por default
      * @return el dialogo nuevo
      */
@@ -45,16 +47,19 @@ public class DialogoNombreFoto extends DialogFragment {
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
-        //Obtenemos el listener (activity que implementa la interfaz) para enviar informacion a traves de el
+
+        //Obtenemos el listener (activity que implementa la interfaz)
         try {
             listener = (NombreSeleccionadoListener)activity;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString() + " se debe implementar NombreSeleccionadoListener");
+            throw new ClassCastException(activity.toString() + " se debe implementar " +
+                    "NombreSeleccionadoListener");
         }
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
         getDialog().getWindow().requestFeature(Window.FEATURE_NO_TITLE);
         View layout_dialogo = inflater.inflate(R.layout.dialogo_nombre_foto, container, false);
 
@@ -64,10 +69,11 @@ public class DialogoNombreFoto extends DialogFragment {
         if (bundle_argumentos != null) {
             titulo_foto = bundle_argumentos.getString(KEY_TITULO_FOTO);
         }
-        final EditText nombre_foto = (EditText) layout_dialogo.findViewById(R.id.nombre_foto_dialogo);
+        final EditText nombre_foto =
+                (EditText) layout_dialogo.findViewById(R.id.nombre_foto_dialogo);
         nombre_foto.setHint(titulo_foto);
 
-        //Si se pulsa aceptar se usa el listener para pasar el nombre escrito en el cuadro de texto a la activity
+        //Si se pulsa aceptar se usa el listener para pasar el nombre escrito en el cuadro de texto
         Button boton_aceptar = (Button) layout_dialogo.findViewById(R.id.boton_aceptar_dialogo);
         boton_aceptar.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -82,19 +88,25 @@ public class DialogoNombreFoto extends DialogFragment {
             }
         });
 
+        //Mostramos el teclado para que el usuario ponga el nombre de la foto
+        getDialog().getWindow().
+                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+
         return layout_dialogo;
     }
 
     @Override
     public void onDismiss(DialogInterface dialog){
-        //Si no se pulso aceptar se avisa a la activity que se cancelo el dialogo
-        if (!nombre_seleccionado)
-            listener.nombreCancelado();
         super.onDismiss(dialog);
+
+        //Si no se pulso aceptar se avisa a la activity que se cancelo el dialogo
+        if (!nombre_seleccionado) {
+            listener.nombreCancelado();
+        }
     }
 
     /**
-     * NombreSeleccionadoListener: interfaz que se debe implementar para recibir informacion del dialogo.
+     * NombreSeleccionadoListener: Para escuchar los eventos del dialogo.
      */
     public interface NombreSeleccionadoListener {
         void nombreSeleccionado(String nombre);

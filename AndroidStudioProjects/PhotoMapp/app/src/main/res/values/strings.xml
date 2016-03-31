@@ -5,9 +5,6 @@
     <string name="mapa">Mapa</string>
 
     <!-- Texto de Toasts -->
-    <string name="permiso_camara_denegado">Sin acceso a la cámara</string>
-    <string name="permiso_ubicacion_denegado">Sin acceso a la ubicación</string>
-    <string name="permiso_almacenamiento_denegado">Sin acceso al almacenamiento</string>
     <string name="captura_imagen_fallida">Error configurando captura de imagen</string>
     <string name="toast_foto_tomada">Guardando</string>
     <string name="toast_foto_no_tomada">No se pudo guardar :(</string>
@@ -16,12 +13,10 @@
 
     <!-- Texto en dialogos -->
     <string name="titulo_dialogo_nombre_foto">Nombre de la Foto</string>
-    <string name="titulo_dialogo_permiso_almacenamiento">Permiso Almacenamiento</string>
-    <string name="mensaje_dialogo_permiso_almacenamiento">Para poder guardar y leer las fotografías es necesario que permitas el acceso al almacenamiento externo.</string>
-    <string name="titulo_dialogo_permiso_camara">Permiso Cámara</string>
-    <string name="mensaje_dialogo_permiso_camara">Para poder tomar fotografías es necesario que permitas el acceso a la cámara.</string>
-    <string name="titulo_dialogo_permiso_ubicacion">Permiso Ubicación</string>
-    <string name="mensaje_dialogo_permiso_ubicacion">Para poder agregar tus fotografías al mapa de Photomapp es necesario que permitas el acceso a la ubicación.</string>
+    <string name="titulo_dialogo_permisos">Permisos Necesarios</string>
+    <string name="mensaje_dialogo_permiso_mostrar_lista">Mostrar la lista con fotos requiere acceso al almacenamiento externo</string>
+    <string name="mensaje_dialogo_permiso_iniciar">Tomar imágenes de la cámara y mostrarlas en el mapa requiere acceso a la cámara y a la ubicación</string>
+    <string name="mensaje_dialogo_permiso_foto">Tomar fotografías, guardarlas y mostrar su ubicación requiere acceso a la cámara, al almacenamiento externo y a la ubicación</string>
 
     <!-- Descripciones de Vistas-->
     <string name="descripcion_icono_direcciones">Boton que lanzaun intent para mostrar la direcciónde la foto seleccionada en otro mapa.</string>

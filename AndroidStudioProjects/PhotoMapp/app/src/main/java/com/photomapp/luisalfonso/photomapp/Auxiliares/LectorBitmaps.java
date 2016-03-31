@@ -32,6 +32,7 @@ public class LectorBitmaps {
     //Modificar junto con el layout de la activity mapa para tener la relacion de la RecycleView
     //respecto al parent
     public static final int RELACION_PANTALLA_LISTA = 4;
+
     //Macros
     private static final String RUTA_AUN_NO_INDICADA = "NULO";
     private static final int KILO_BYTE = 1024;
@@ -86,7 +87,7 @@ public class LectorBitmaps {
     }
 
     /**
-     * obtenerMemoriaCache: Obtiene una memoria cache de 1/16 la memoria disponible para la app.
+     * obtenerMemoriaCache: Obtiene una memoria cache de la memoria disponible para la app.
      */
     private void obtenerMemoriaCache() {
         //Obtenemos la memoria disponible para la app y asignamos un dieciseisavo para la cache
@@ -142,15 +143,14 @@ public class LectorBitmaps {
      */
     public void extraerImagenListaEn(Activity activity, ImageView contenedor_imagen, String ruta){
         if (cancelarExtractorInnecesario(ruta, contenedor_imagen)) {
-            final Bitmap bitmap = memoria_cache.get(ruta);
-            if (bitmap != null) {
-                contenedor_imagen.setImageBitmap(bitmap);
+            final Bitmap bitmap_cache = memoria_cache.get(ruta);
+            if (bitmap_cache != null) {
+                contenedor_imagen.setImageBitmap(bitmap_cache);
             } else {
                 //si ya se libero el extractor innecesario se inicia uno nuevo con la nueva imagen
                 HiloExtractorBitmap extractor = new HiloExtractorBitmap(contenedor_imagen);
-                final AsyncDrawable asyncDrawable =
-                        new AsyncDrawable(activity.getResources(), imagen_cargando, extractor);
-                contenedor_imagen.setImageDrawable(asyncDrawable);
+                contenedor_imagen.setImageDrawable(
+                        new AsyncDrawable(activity.getResources(), imagen_cargando, extractor));
 
                 String parametros[] = { ruta };
                 extractor.execute(parametros);
@@ -172,8 +172,7 @@ public class LectorBitmaps {
         final HiloExtractorBitmap extractor = obtenerHiloExtractorBitmap(contenedor_imagen);
 
         if (extractor != null) {
-            final String ruta_bitmap = extractor.ruta;
-            if (ruta_bitmap.equals(RUTA_AUN_NO_INDICADA) || !ruta_bitmap.equals(ruta)) {
+            if (extractor.ruta.equals(RUTA_AUN_NO_INDICADA) || !extractor.ruta.equals(ruta)) {
                 extractor.cancel(true);
             } else {
                 return false;
@@ -191,8 +190,7 @@ public class LectorBitmaps {
         if (contenedor_imagen != null) {
             final Drawable drawable = contenedor_imagen.getDrawable();
             if (drawable instanceof AsyncDrawable) {
-                final AsyncDrawable asyncDrawable = (AsyncDrawable)drawable;
-                return asyncDrawable.obtenerHiloExtractorBitmap();
+                return ((AsyncDrawable)drawable).obtenerHiloExtractorBitmap();
             }
         }
         return null;
@@ -207,7 +205,6 @@ public class LectorBitmaps {
         final BitmapFactory.Options opciones_imagen = new BitmapFactory.Options();
         opciones_imagen.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(ruta_archivo, opciones_imagen);
-
         opciones_imagen.inSampleSize = calcularFactorEscala(opciones_imagen,
                 longitud_lado_img_lista, longitud_lado_img_lista);
         opciones_imagen.inJustDecodeBounds = false;
@@ -251,10 +248,10 @@ public class LectorBitmaps {
     private void ponerOpcionInBitmap(BitmapFactory.Options opciones) {
         //Tiene que ser mutable
         opciones.inMutable = true;
-        Bitmap inBitmap = obtenerBitmapDesechado(opciones);
+        Bitmap bitmap_reutilizable = obtenerBitmapDesechado(opciones);
         //Activa inBitmap en las opciones con el bitmap encontrado
-        if (inBitmap != null) {
-            opciones.inBitmap = inBitmap;
+        if (bitmap_reutilizable != null) {
+            opciones.inBitmap = bitmap_reutilizable;
         }
     }
 
@@ -265,7 +262,7 @@ public class LectorBitmaps {
      * @return bitmap que se puede reutilizar o nulo si no existe
      */
     protected Bitmap obtenerBitmapDesechado(BitmapFactory.Options opciones) {
-        Bitmap bitmap = null;
+        Bitmap bitmap_reutilizable = null;
 
         if (!bitmaps_desechados.isEmpty()) {
             synchronized (bitmaps_desechados) {
@@ -276,7 +273,7 @@ public class LectorBitmaps {
                     desechado = iterador.next().get();
                     if (null != desechado && desechado.isMutable()) {
                         if (reutilizableParaInBitmap(desechado, opciones)) {
-                            bitmap = desechado;
+                            bitmap_reutilizable = desechado;
                             iterador.remove();
                             break;
                         }
@@ -286,7 +283,7 @@ public class LectorBitmaps {
                 }
             }
         }
-        return bitmap;
+        return bitmap_reutilizable;
     }
 
     /**
@@ -327,35 +324,16 @@ public class LectorBitmaps {
 
         @Override
         protected Bitmap doInBackground(String... params) {
+            //En background extraemos el bitmap y lo agregamos a cache
             ruta = params[0];
             Bitmap imagen = extraerBitmapListaEscaladoAlmacenamiento(ruta);
             if (imagen == null){
                 return null;
             }
-            Bitmap resultado;
-            //Recortamos el cuadrado central de la imagen (si no es cuadrada)
-            if (imagen.getWidth() >= imagen.getHeight()){
-                resultado = Bitmap.createBitmap(
-                        imagen,
-                        imagen.getWidth() / 2 - imagen.getHeight() / 2,
-                        0,
-                        imagen.getHeight(),
-                        imagen.getHeight()
-                );
-            }else{
-                resultado = Bitmap.createBitmap(
-                        imagen,
-                        0,
-                        imagen.getHeight()/2 - imagen.getWidth()/2,
-                        imagen.getWidth(),
-                        imagen.getWidth()
-                );
-            }
-            //Agregamos la imagen a cache
             if (memoria_cache.get(ruta) == null) {
-                memoria_cache.put(ruta, resultado);
+                memoria_cache.put(ruta, imagen);
             }
-            return resultado;
+            return imagen;
         }
 
         @Override
@@ -364,6 +342,8 @@ public class LectorBitmaps {
             if (isCancelled()) {
                 bitmap = null;
             }
+
+            //Si no se cancelo, ponemos el bitmap en su contenedor
             if (referencia_contenedor_imagen != null && bitmap != null) {
                 final ImageView contenedor_imagen = referencia_contenedor_imagen.get();
                 final HiloExtractorBitmap extractor = obtenerHiloExtractorBitmap(contenedor_imagen);

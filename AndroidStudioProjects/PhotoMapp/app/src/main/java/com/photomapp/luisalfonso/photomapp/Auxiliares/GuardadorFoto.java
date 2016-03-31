@@ -5,7 +5,6 @@ import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.util.Log;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -19,9 +18,11 @@ public class GuardadorFoto extends AsyncTask<Void, Void, Boolean> {
     //Macro
     private static final String TIPO_MIME = "image/jpeg";
 
-    //Fichero e informacion para el registro
+    //Informacion de la foto a guardar
     private final String nombre;
     private Bitmap foto;
+
+    //Content Resolver para informar a la galeria
     private ContentResolver cr;
 
     //Escuchador de eventos
@@ -40,17 +41,13 @@ public class GuardadorFoto extends AsyncTask<Void, Void, Boolean> {
     @Override
     protected Boolean doInBackground(Void... params) {
         //Escribe los bytes en el fichero de salida
-        Log.i(LOG_TAG, "background");
-        String ruta_foto = Util.obtenerDirectorioFotos() + File.separator + nombre +
-                Util.EXTENSION_ARCHIVO_FOTO;
-        Log.i(LOG_TAG, "se obtuvo directorio");
+        String ruta_foto = Util.obtenerRutaArchivoImagen(nombre);
         FileOutputStream salida = null;
         try {
             salida = new FileOutputStream(ruta_foto);
             foto.compress(Bitmap.CompressFormat.JPEG, 85, salida);
-            Log.i(LOG_TAG, "se guardo foto");
         } catch (IOException e) {
-            Log.e(LOG_TAG, "No se pudo guardar la foto: " + e.getMessage());
+            Log.e(LOG_TAG, "No se pudo guardar la foto: ");
             e.printStackTrace();
             return false;
         } finally {

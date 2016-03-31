@@ -1,22 +1,17 @@
 package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
 import android.content.ContentResolver;
-import android.content.Context;
 import android.database.Cursor;
-import android.location.Address;
-import android.location.Geocoder;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.util.Log;
 
-import com.google.android.gms.maps.model.LatLng;
 import com.photomapp.luisalfonso.photomapp.data.ContratoPhotoMapp;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -37,27 +32,6 @@ public class Util {
     public static String obtenerFecha(String formato){
         SimpleDateFormat formato_fecha = new SimpleDateFormat(formato, Locale.US);
         return formato_fecha.format(Calendar.getInstance().getTime());
-    }
-
-    /**
-     * obtenerNombreCiudad: regresa la direccion de la bicacion especificada.
-     * @param context Context de la aplicacion de donde se llama.
-     * @param ubicacion LatLng de la ubicacion
-     * @return Address con la direccion.
-     */
-    public static Address obtenerDireccion(Context context, LatLng ubicacion){
-        //Usamos la clase Geocoder para obtener un objeto Address
-        Geocoder localizador = new Geocoder(context);
-        double latitud = ubicacion.latitude;
-        double longitud = ubicacion.longitude;
-        try {
-            //Regresamos la direccion
-            List<Address> lista_direccion = localizador.getFromLocation(latitud, longitud, 1);
-            return lista_direccion.get(0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     /**
@@ -91,14 +65,13 @@ public class Util {
      * @return File con el archivo donde se almacenan las fotos, si no es posible obtenerlo, null
      */
     public static File obtenerDirectorioFotos() {
-        //Guardamos en sus variables respectivas si podemos escribir y leer del almacenamiento
         if (obtenerEscrituraPosible()) {
             //Obtenemos el directorio de fotogragias con el nombre de la app
             File directorio = new File(
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                     NOMBRE_ALBUM_FOTOS);
-            if (!directorio.mkdirs()) {
-                Log.w(LOG_TAG, "No se pudo crear el directorio.");
+            if (!directorio.mkdirs() && !directorio.exists()) {
+                Log.w(LOG_TAG, "No se pudo crear el directorio PhotoMapp en el dispositivo");
             }
             return directorio;
         }
@@ -110,8 +83,7 @@ public class Util {
      * @return true si es posible escribir en el almacenamiento, false de otro modo.
      */
     public static boolean obtenerEscrituraPosible() {
-        String estado_almacenamiento = Environment.getExternalStorageState();
-        if (Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)){
+        if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())){
             return true;
         }
         Log.w(LOG_TAG, "No se puede escribir en el almacenamiento externo.");
@@ -123,10 +95,10 @@ public class Util {
      * @return true si es posible leer del almacenamiento, false de otro modo.
      */
     public static boolean obtenerLecturaPosible() {
-        String estado_almacenamiento = Environment.getExternalStorageState();
-        if (!Environment.MEDIA_MOUNTED.equals(estado_almacenamiento)) {
-            if (!Environment.MEDIA_MOUNTED_READ_ONLY.equals(estado_almacenamiento)) {
-                Log.w(LOG_TAG, "No se puede leer en el almacenamiento externo.");
+        if (!obtenerEscrituraPosible()) {
+            if (!Environment.MEDIA_MOUNTED_READ_ONLY.
+                    equals(Environment.getExternalStorageState())) {
+                Log.w(LOG_TAG, "No se puede leer en el almacenamiento externo");
                 return false;
             }
         }
@@ -134,19 +106,44 @@ public class Util {
     }
 
     /**
-     * obtenerNombreImagen: Si se quiere obtener el nombre de una imagen de la base de datos y se
-     * tiene el id, este metodo checa el contentProvider y regresa solamente el nombre
-     * @param id int _ID de la imagen en la BD
-     * @param cr ContentResolver valido
-     * @return String nombre de la imagen
+     * obtenerIdsImagenes: Regresa todos los ids registrados en el Content Provider
+     * @param cr ContentResolver
+     * @return ArrayList<Integer> con todos los ids
      */
-    public static String obtenerNombreImagen(int id, ContentResolver cr){
-        String nombre = null;
+    public static ArrayList<Integer> obtenerIdsImagenes(ContentResolver cr){
+        String projection[] = { ContratoPhotoMapp.Fotos._ID };
+        Cursor cursor = cr.query(
+                ContratoPhotoMapp.Fotos.CONTENT_URI,
+                projection,
+                null,
+                null,
+                null
+        );
+
+        ArrayList<Integer> ids = new ArrayList<>();
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                ids.add(cursor.getInt(cursor.getColumnIndex(ContratoPhotoMapp.Fotos._ID)));
+            }
+            cursor.close();
+        } else {
+            Log.w(LOG_TAG, "El Content Provider regreso cursor nulo al intentar obtener los ids");
+        }
+        return ids;
+    }
+
+    /**
+     * obtenerNombrePorId: Obtiene el nombre de una imagen a partir de su id en el ContentProvider.
+     * @param id int ID de la imagen en el CP
+     * @param cr ContentResolver
+     * @return String nombre de la imagen o null si no se encontro
+     */
+    public static String obtenerNombrePorId(int id, ContentResolver cr){
         String projection[] = {
                 ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE
         };
         String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
-        String[] args = {String.valueOf(id)};
+        String[] args = { String.valueOf(id) };
         Cursor cursor = cr.query(
                 ContratoPhotoMapp.Fotos.CONTENT_URI,
                 projection,
@@ -154,14 +151,66 @@ public class Util {
                 args,
                 null
         );
+
+        String nombre = null;
         if (cursor != null) {
             if (cursor.moveToFirst()) {
                 nombre = cursor.getString(
                         cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
+
+            } else {
+                Log.w(LOG_TAG, "No se encontró la imgen de id: " + id);
             }
             cursor.close();
         }
         return nombre;
+    }
+
+    /**
+     * obtenerImagenPorId: Obtiene objetos ImagenPhotoMapp  a partir del id haciendo querys al
+     * Content Provider.
+     * @param id int id de la imagen que se desea obtener
+     * @param cr ContentResolver
+     * @return ImagenPhotoMapp de la imagen o null si no se encontro
+     */
+    public static ImagenPhotoMapp obtenerImagenPorId(int id, ContentResolver cr){
+        //Hacemos un query para obtener las especificaciones de la foto con el id dado
+        String projection[] = {
+                ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE,
+                ContratoPhotoMapp.Fotos.COLUMNA_FECHA,
+                ContratoPhotoMapp.Fotos.COLUMNA_LATITUD,
+                ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD
+        };
+        String clause = ContratoPhotoMapp.Fotos._ID + " = ?";
+        String[] args = { String.valueOf(id) };
+        Cursor cursor = cr.query(
+                ContratoPhotoMapp.Fotos.CONTENT_URI,
+                projection,
+                clause,
+                args,
+                null
+        );
+
+        //Creamos un objeto ImagenPhotoMapp con las especificaciones
+        ImagenPhotoMapp informacion_imagen = null;
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                String nombre = cursor.getString(
+                        cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_NOMBRE));
+                String fecha = cursor.getString(
+                        cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_FECHA));
+                double latitud = cursor.getDouble(
+                        cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LATITUD));
+                double longitud = cursor.getDouble(
+                        cursor.getColumnIndex(ContratoPhotoMapp.Fotos.COLUMNA_LONGITUD));
+                informacion_imagen = new ImagenPhotoMapp(id, nombre, fecha, latitud, longitud);
+
+            } else {
+                Log.w(LOG_TAG, "No se encontró la imgen de id: " + id);
+            }
+            cursor.close();
+        }
+        return informacion_imagen;
     }
 
     /**
@@ -175,8 +224,7 @@ public class Util {
             @Override
             protected Boolean doInBackground(String[]... params) {
                 for (String nombre: params[0]) {
-                    File archivo = new File(obtenerDirectorioFotos() + File.separator + nombre +
-                            EXTENSION_ARCHIVO_FOTO);
+                    File archivo = new File(obtenerRutaArchivoImagen(nombre));
                     if (archivo.exists()) {
                         if (!archivo.delete()) {
                             Log.w(LOG_TAG, "No se pudo borrar la foto " + nombre);
@@ -188,6 +236,17 @@ public class Util {
 
         }.execute(nombre_foto);
 
+    }
+
+    /**
+     * obtenerRutaArchivoImagen: Obtiene la ruta del almacenamiento donde deberia* ubicarse la
+     * imagen con el nombre dado.
+     * @param nombre String nombre de la imagen
+     * @return String de la ruta donde deberia estar la imagen
+     */
+    public static String obtenerRutaArchivoImagen(String nombre){
+        return obtenerDirectorioFotos().getPath() + File.separator + nombre +
+                EXTENSION_ARCHIVO_FOTO;
     }
 
 }

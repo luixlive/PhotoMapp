@@ -1,16 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+<android.support.percent.PercentFrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_height="match_parent"
-    android:id="@+id/foto"
-    android:paddingEnd="2dp"
-    android:adjustViewBounds="true"
-    android:paddingStart="2dp"
-    android:background="@xml/background_fotografias"
-    android:contentDescription="@string/descripcion_foto"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
-    android:layout_gravity="center"
+    android:layout_width="wrap_content"
+    android:id="@+id/contenedor_foto_lista"
     android:paddingLeft="2dp"
-    android:paddingRight="2dp" />
+    android:paddingTop="4dp"
+    android:paddingRight="2dp"
+    android:paddingBottom="4dp"
+    android:paddingEnd="2dp"
+    android:paddingStart="2dp"
+    android:background="@xml/background_fotografias">
+
+    <!--suppress AndroidDomInspection -->
+    <ImageView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        app:layout_heightPercent="100%"
+        app:layout_aspectRatio="100%"
+        android:id="@+id/foto_lista"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/descripcion_foto" />
+
+</android.support.percent.PercentFrameLayout>

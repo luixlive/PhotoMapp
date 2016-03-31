@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * streaming en el contenedor que se le indique en el constructor, asi como tomar fotos y regresar
  * el resultado por medio de la interfaz TomarFotoListener
  */
-public class ManejadorCamara implements TextureView.SurfaceTextureListener {
+public class ManejadorCamara {
 
     //Etiqueta para la escritura al LOG
     private static final String LOG_TAG = "MANEJADOR_CAMARA";
@@ -72,60 +72,20 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
     private HandlerThread hilo_background;
     private Handler handler;
 
-    //Variables de apoyo para manejar la camara
-    private Image foto_tomada;
-    private ImageReader lector_imagen_fija;
+    //Estado inicial de la camara
     private int estado_actual_camara = ESTADO_PREVIEW;
+
+    //Variables para la captura de la foto
+    private ImageReader lector_imagen_fija;
+    private Image foto_tomada;
+
+    //Variables para el uso del Hardware de la camara
     private CameraDevice camara;
     private CaptureRequest.Builder constructor_imagen_preview;
     private CameraCaptureSession sesion_captura_imagen;
-    private boolean soporta_flash;
-    private boolean preferencia_usuario_flash = false;
-    private Semaphore semaforo_abrir_cerrar_camara = new Semaphore(1);
     private CaptureRequest solicitud_foto;
-    private CameraDevice.StateCallback estado_camara_listener = new CameraDevice.StateCallback() {
 
-        @Override
-        public void onOpened(@NonNull CameraDevice camera) {
-            //Comienza la captura de imagen cuando se abre la camara y liberamos el semaforo
-            semaforo_abrir_cerrar_camara.release();
-            camara = camera;
-            comenzarCapturaImagen();
-        }
-
-        @Override
-        public void onDisconnected(@NonNull CameraDevice camera) {
-            //Si la camara se separa del hardware se cierra
-            semaforo_abrir_cerrar_camara.release();
-            camara.close();
-            camara = null;
-        }
-
-        @Override
-        public void onError(@NonNull CameraDevice camera, int error) {
-            //Si ocurre un error con la camara se cierra
-            semaforo_abrir_cerrar_camara.release();
-            camara.close();
-            camara = null;
-        }
-
-    };
-    private final ImageReader.OnImageAvailableListener imagen_disponible_listener =
-            new ImageReader.OnImageAvailableListener() {
-
-                @Override
-                public void onImageAvailable(ImageReader lector) {
-                    //Si es posible leer en el almacenamiento externo guardamos la imagen
-                    if (foto_tomada != null) {
-                        foto_tomada.close();
-                    }
-                    foto_tomada = lector.acquireLatestImage();
-                    if (listener != null) {
-                        listener.fotoTomada(foto_tomada);
-                    }
-                }
-
-            };
+    //Listener para los eventos de la captura de imagenes
     private CameraCaptureSession.CaptureCallback captura_imagen_listener =
             new CameraCaptureSession.CaptureCallback() {
 
@@ -214,30 +174,16 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
 
             };
 
+    //Banderas para el uso del flash
+    private boolean soporta_flash;
+    private boolean preferencia_usuario_flash = false;
+
+    //Semaforo para restringir la apertura y cierre de la camara
+    private Semaphore semaforo_abrir_cerrar_camara = new Semaphore(1);
+
     public ManejadorCamara(Activity activity, TextureView contenedor_imagenes) {
         this.contenedor_imagenes = contenedor_imagenes;
         activity_padre = activity;
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-        //Cuando la Surface se cargue, comienza la apertura de la camara
-        abrirCamara();
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-        return false;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
     }
 
     /**
@@ -249,7 +195,28 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
             if (contenedor_imagenes.isAvailable()) {
                 abrirCamara();
             } else {
-                contenedor_imagenes.setSurfaceTextureListener(this);
+                contenedor_imagenes.setSurfaceTextureListener(
+                        new TextureView.SurfaceTextureListener() {
+
+                            @Override
+                            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width,
+                                                                  int height) {
+                                //Cuando la Surface se cargue, comienza la apertura de la camara
+                                abrirCamara();
+                            }
+
+                            @Override
+                            public void onSurfaceTextureSizeChanged(SurfaceTexture surface,
+                                                                    int width, int height) {}
+
+                            @Override
+                            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                                return false;
+                            }
+
+                            @Override
+                            public void onSurfaceTextureUpdated(SurfaceTexture surface) {}
+                });
             }
             proceso_iniciado = true;
         }
@@ -291,17 +258,42 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
             //Configuramos las variables y obtenemos el id de la camara principal
             String id_camara = obtenerCaracteristicasCamara();
 
-            //Abrimos la camara utilizando el handler y nos apoyamos de un semaforo para bloquear
-            //apertura y cerrado de la camara
             CameraManager administrador_camaras =
                     (CameraManager)activity_padre.getSystemService(Context.CAMERA_SERVICE);
             try {
                 if (!semaforo_abrir_cerrar_camara.tryAcquire(CAMARA_TIEMPO_ESPERA,
                         TimeUnit.MILLISECONDS)) {
                     Log.e(LOG_TAG, "Demasiado tiempo esperando a la camara.");
+                    return;
                 }
                 if (id_camara != null) {
-                    administrador_camaras.openCamera(id_camara, estado_camara_listener, handler);
+                    administrador_camaras.openCamera(id_camara, new CameraDevice.StateCallback() {
+
+                        @Override
+                        public void onOpened(@NonNull CameraDevice camera) {
+                            //Comienza la captura de imagen cuando se abre la camara
+                            semaforo_abrir_cerrar_camara.release();
+                            camara = camera;
+                            comenzarCapturaImagen();
+                        }
+
+                        @Override
+                        public void onDisconnected(@NonNull CameraDevice camera) {
+                            //Si la camara se separa del hardware se cierra
+                            semaforo_abrir_cerrar_camara.release();
+                            camara.close();
+                            camara = null;
+                        }
+
+                        @Override
+                        public void onError(@NonNull CameraDevice camera, int error) {
+                            //Si ocurre un error con la camara se cierra
+                            semaforo_abrir_cerrar_camara.release();
+                            camara.close();
+                            camara = null;
+                        }
+
+                    }, handler);
                 }
             } catch (CameraAccessException e) {
                 Log.e(LOG_TAG, "No se puede acceder a la camara: ");
@@ -341,7 +333,22 @@ public class ManejadorCamara implements TextureView.SurfaceTextureListener {
             //Configuramos al lector de las imagenes tomadas por la camara
             lector_imagen_fija = ImageReader.newInstance(mas_grande.getWidth(),
                     mas_grande.getHeight(), ImageFormat.JPEG, 2);
-            lector_imagen_fija.setOnImageAvailableListener(imagen_disponible_listener, handler);
+            lector_imagen_fija.setOnImageAvailableListener(
+                    new ImageReader.OnImageAvailableListener() {
+
+                @Override
+                public void onImageAvailable(ImageReader lector) {
+                    //Si es posible leer en el almacenamiento externo guardamos la imagen
+                    if (foto_tomada != null) {
+                        foto_tomada.close();
+                    }
+                    foto_tomada = lector.acquireLatestImage();
+                    if (listener != null) {
+                        listener.fotoTomada(foto_tomada);
+                    }
+                }
+
+            }, handler);
 
             //Obtenemos el tamano necesario del Surface
             tam_surface = configuraciones.getOutputSizes(SurfaceTexture.class)[0];

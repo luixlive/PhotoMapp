@@ -1,6 +1,6 @@
 package com.photomapp.luisalfonso.photomapp.Auxiliares;
 
-import android.os.Environment;
+import android.app.Activity;
 import android.support.v7.widget.RecyclerView;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
@@ -8,10 +8,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import com.photomapp.luisalfonso.photomapp.Activities.ActivityMapa;
 import com.photomapp.luisalfonso.photomapp.R;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +21,7 @@ public class AdaptadorListaFotos extends
         RecyclerView.Adapter<AdaptadorListaFotos.ContenedorFotos>  {
 
     //Rutas de las fotos
-    public ArrayList<String> rutas_fotos = new ArrayList<>();
+    public ArrayList<String> nombres_fotos;
 
     //Listener para informar cuando se pulsan las imagenes
     private EventosAdaptadorListener listener;
@@ -32,23 +30,17 @@ public class AdaptadorListaFotos extends
     private LectorBitmaps lector_imagenes;
 
     //Activity padre
-    private ActivityMapa activity_padre;
+    private Activity activity;
 
     //Arreglo de booleanos donde iremos almacenando los items seleccionados
     private SparseBooleanArray items_seleccionados;
 
-    public AdaptadorListaFotos(ActivityMapa activity, String nombres_fotos[]){
-        activity_padre = activity;
+    private boolean estado_seleccion = false;
+
+    public AdaptadorListaFotos(Activity activity, ArrayList<String> nombres_fotos){
+        this.activity = activity;
         items_seleccionados = new SparseBooleanArray();
-
-        for (String nombres_foto : nombres_fotos) {
-            rutas_fotos.add(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) +
-                            File.separator + Util.NOMBRE_ALBUM_FOTOS + File.separator +
-                            nombres_foto + Util.EXTENSION_ARCHIVO_FOTO);
-        }
-
-        //Iniciamos el lector de las imagenes
+        this.nombres_fotos = nombres_fotos;
         lector_imagenes = new LectorBitmaps(activity);
     }
 
@@ -63,55 +55,66 @@ public class AdaptadorListaFotos extends
     @Override
     public void onBindViewHolder(ContenedorFotos holder, int position) {
         ImageView contenedor_imagen = holder.obtenerContenedorImagen();
+
         //Declaramos si esta activado o no (seleccionado) para pintar su background
-        contenedor_imagen.setActivated(items_seleccionados.get(position));
+        ((View)contenedor_imagen.getParent()).setActivated(items_seleccionados.get(position));
+
         //Cuando un holder esta listo, se pobla el layout de la imagen con su foto correspondiente
-        lector_imagenes.extraerImagenListaEn(activity_padre, contenedor_imagen,
-                rutas_fotos.get(position));
+        lector_imagenes.extraerImagenListaEn(activity, contenedor_imagen,
+                Util.obtenerRutaArchivoImagen(nombres_fotos.get(position)));
     }
 
     @Override
     public int getItemCount() {
-        return rutas_fotos.size();
+        return nombres_fotos.size();
     }
 
-    /**
-     * Interface EventosAdaptadorListener: Por default, el RecyclerView no cuenta con
-     * OnItemClickListener, por lo que nosotros lo creamos a traves del adaptador.
-     */
-    public interface EventosAdaptadorListener {
-        void itemClick(View view , int position);
-        void itemLongClick(View view , int position);
+    public boolean obtenerEstadoSeleccion(){
+        return estado_seleccion;
     }
 
-    /**
-     * setOnItemClickListener: Inicializa el OnItemClickListener
-     * @param listener onbjeto ImagenPulsadaListener que utilizaremos
-     */
-    public void setEventosAdaptadorListener(final EventosAdaptadorListener listener){
-        this.listener = listener;
-    }
-
-    /**
-     * cambiarEstadoSeleccion: Cambia el estado del item en la posicion establecida entre
-     * seleccionado y no seleccionado
-     * @param posicion int correspondiente al index del item
-     */
-    public void cambiarEstadoSeleccion(int posicion){
-        if (items_seleccionados.get(posicion, false)) {
-            items_seleccionados.delete(posicion);
+    public void terminarSeleccion(){
+        if (estado_seleccion){
+            cambiarEstadoSeleccion();
         }
-        else {
-            items_seleccionados.put(posicion, true);
+    }
+
+    private void cambiarEstadoSeleccion(){
+        estado_seleccion = !estado_seleccion;
+        if (estado_seleccion){
+            if (listener != null) {
+                listener.inicioSeleccion();
+            }
+        } else{
+            borrarSelecciones();
+            if (listener != null) {
+                listener.finSeleccion();
+            }
         }
-        //Despues de cambiar el estado se notifica al adaptador para que actualice la lista
-        notifyItemChanged(posicion);
+    }
+
+    private void cambiarEstadoSeleccionItem(int posicion){
+        if (obtenerEstadoSeleccion()) {
+            if (listener != null) {
+                listener.actualizacionSeleccion();
+            }
+            if (items_seleccionados.get(posicion, false)) {
+                items_seleccionados.delete(posicion);
+                if (obtenerNumeroItemsSeleccionados() == 0){
+                    cambiarEstadoSeleccion();
+                }
+            } else {
+                items_seleccionados.put(posicion, true);
+            }
+            //Despues de cambiar el estado se notifica al adaptador para que actualice la lista
+            notifyItemChanged(posicion);
+        }
     }
 
     /**
      * borrarSelecciones: Limpia todas las selecciones de imagenes.
      */
-    public void borrarSelecciones(){
+    private void borrarSelecciones(){
         //Se limpia la lista y se notifica al adaptador
         if (items_seleccionados.size() > 0) {
             items_seleccionados.clear();
@@ -143,13 +146,38 @@ public class AdaptadorListaFotos extends
      * eliminarImagenesLista: Se remueven la imagen de la posicion especificada de la lista.
      * @param index int con la posicion de la foto a remover.
      */
-    public void eliminarImagenesLista(int index){
+    public void eliminarImagenLista(int index){
         //Si la imagen a eliminar esta seleccionada, se elimina la seleccion antes
         if (items_seleccionados.get(index)){
             items_seleccionados.delete(index);
         }
-        rutas_fotos.remove(index);
+        if (estado_seleccion){
+            if (obtenerNumeroItemsSeleccionados() == 0){
+                cambiarEstadoSeleccion();
+            }
+        }
+        nombres_fotos.remove(index);
         notifyItemRemoved(index);
+    }
+
+    /**
+     * Interface EventosAdaptadorListener: Por default, el RecyclerView no cuenta con
+     * OnItemClickListener, por lo que nosotros lo creamos a traves del adaptador.
+     */
+    public interface EventosAdaptadorListener {
+        void itemClick(View vista , int posicion);
+        void inicioSeleccion();
+        void actualizacionSeleccion();
+        void finSeleccion();
+        void itemSwipeArriba(View vista , int posicion);
+    }
+
+    /**
+     * setOnItemClickListener: Inicializa el OnItemClickListener
+     * @param listener onbjeto ImagenPulsadaListener que utilizaremos
+     */
+    public void setEventosAdaptadorListener(final EventosAdaptadorListener listener){
+        this.listener = listener;
     }
 
     /**
@@ -157,7 +185,7 @@ public class AdaptadorListaFotos extends
      * recursos que utilizaaremos (un ImageView para la foto).
      */
     public class ContenedorFotos extends RecyclerView.ViewHolder implements View.OnClickListener,
-            View.OnLongClickListener {
+            View.OnLongClickListener{
 
         //Contenedor para la foto
         private ImageView contenedor_imagen;
@@ -165,29 +193,59 @@ public class AdaptadorListaFotos extends
         public ContenedorFotos(View layout_foto) {
             super(layout_foto);
 
-            contenedor_imagen = (ImageView)layout_foto.findViewById(R.id.foto);
+            contenedor_imagen = (ImageView)layout_foto.findViewById(R.id.foto_lista);
             layout_foto.setOnClickListener(this);
             layout_foto.setOnLongClickListener(this);
-        }
+            layout_foto.setOnTouchListener(
+                    new SwipeListener(activity.getApplicationContext()) {
 
-        public ImageView obtenerContenedorImagen(){
-            return contenedor_imagen;
+                        @Override
+                        public void swipeIzquierda(View v) {
+                        }
+
+                        @Override
+                        public void swipeDerecha(View v) {
+                        }
+
+                        @Override
+                        public void swipeArriba(View v) {
+                            //El unico swipe que nos interesa detectar es hacia arriba
+                            if (!estado_seleccion && listener != null) {
+                                listener.itemSwipeArriba(v, getAdapterPosition());
+                            }
+                        }
+
+                        @Override
+                        public void swipeAbajo(View v) {
+                        }
+
+                    });
         }
 
         @Override
         public void onClick(View v) {
-            if (listener != null) {
+            if (estado_seleccion){
+                cambiarEstadoSeleccionItem(getAdapterPosition());
+            } else if (listener != null) {
                 listener.itemClick(v, getAdapterPosition());
             }
         }
 
         @Override
         public boolean onLongClick(View v) {
-            if (listener != null) {
-                listener.itemLongClick(v, getAdapterPosition());
+            if (estado_seleccion) {
+                cambiarEstadoSeleccionItem(getAdapterPosition());
+            } else {
+                cambiarEstadoSeleccion();
+                cambiarEstadoSeleccionItem(getAdapterPosition());
             }
             return true;
         }
+
+        public ImageView obtenerContenedorImagen(){
+            return contenedor_imagen;
+        }
+
     }
 
 }

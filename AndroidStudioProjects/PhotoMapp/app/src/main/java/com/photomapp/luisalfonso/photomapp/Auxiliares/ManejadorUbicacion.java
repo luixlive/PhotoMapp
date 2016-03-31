@@ -31,7 +31,7 @@ public class ManejadorUbicacion {
 
     //Variables de apoyo
     private LocationManager manejador;
-    private Activity activity_padre;
+    private Activity activity;
     private Location ultima_ubicacion = null;
     private LocationListener cambio_ubicacion_listener;
 
@@ -40,32 +40,52 @@ public class ManejadorUbicacion {
      * @param activity Activity padre para el acceso a los servicios de ubicacion
      */
     public ManejadorUbicacion(Activity activity) {
-        activity_padre = activity;
+        this.activity = activity;
         manejador = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
         cambio_ubicacion_listener = new LocationListener() {
+
+            @Override
             public void onLocationChanged(Location location) {
-                //Si se detecta una nueva ubicacion se checa si es mejor y de ser asi actualiza la
-                // ultima ubicacion
-                if (esMejorUbicacion(location, ultima_ubicacion))
+                //Si se detecta una nueva ubicacion se checa si es mejor
+                if (esMejorUbicacion(location, ultima_ubicacion)) {
+                    //Si es mejor, se actualiza
                     ultima_ubicacion = location;
+                }
             }
 
+            @Override
             public void onStatusChanged(String provider, int status, Bundle extras) {
             }
 
+            @Override
             public void onProviderEnabled(String provider) {
             }
 
+            @Override
             public void onProviderDisabled(String provider) {
             }
         };
 
         //Obtenemos la ultima ubicacion conocida por el servicio telefonico en caso de que se tome
         //una foto antes de acceder al GPS
-        if (ActivityCompat.checkSelfPermission(activity_padre,
+        ultima_ubicacion = obtenerUltimaUbicacionConocida(activity,
+                LocationManager.NETWORK_PROVIDER);
+    }
+
+    /**
+     * obtenerUltimaUbicacionConocida: Regresa la ultima posicion conocida por el usuario segun
+     * el provider establecido.
+     * @param activity Activity contexto actual
+     * @param provider String provider deseado
+     * @return Location ultima ubicacion conocida
+     */
+    public static Location obtenerUltimaUbicacionConocida(Activity activity, String provider){
+        if (ActivityCompat.checkSelfPermission(activity,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            ultima_ubicacion = manejador.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            return ((LocationManager)activity.getSystemService(Context.LOCATION_SERVICE)).
+                    getLastKnownLocation(provider);
         }
+        return null;
     }
 
     /**
@@ -77,11 +97,11 @@ public class ManejadorUbicacion {
         if (!proceso_iniciado) {
             //Es necesario checar de forma explicita que se tiene el permiso (aunque ya sabemos que se
             //tiene)
-            if (ActivityCompat.checkSelfPermission(activity_padre,
+            if (ActivityCompat.checkSelfPermission(activity,
                     Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 //Obtenemos la preferencia del usuario respecto a si quiere utilizar el GPS o no
                 SharedPreferences preferencias =
-                        PreferenceManager.getDefaultSharedPreferences(activity_padre);
+                        PreferenceManager.getDefaultSharedPreferences(activity);
                 boolean gps = preferencias.getBoolean(ActivityPreferencias.PREFERENCIA_UTILIZAR_GPS_KEY,
                         false);
                 if (gps) {
@@ -102,7 +122,7 @@ public class ManejadorUbicacion {
     public void detenerActualizacionUbicacion() {
         if (proceso_iniciado) {
             //Se checa de forma explicita el permiso
-            if (ActivityCompat.checkSelfPermission(activity_padre,
+            if (ActivityCompat.checkSelfPermission(activity,
                     Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 manejador.removeUpdates(cambio_ubicacion_listener);
             }
@@ -132,21 +152,18 @@ public class ManejadorUbicacion {
 
         //Checamos que tanta diferencia de tiempo hay, si mucho mas nueva si conviene cambiar
         long diferencia_tiempo = ubicacion_nueva.getTime() - actual_mejor_ubicacion.getTime();
-        boolean es_mucho_mas_nueva = diferencia_tiempo > DOS_MINUTOS;
-        boolean es_nueva = diferencia_tiempo > 0;
-        if (es_mucho_mas_nueva) {
+        if (diferencia_tiempo > DOS_MINUTOS) {
             return true;
         }
 
-        //Ahora la precision, si es mas precisa, combiene cambiar
+        //Checamos la precision
         int diferencia_presicion = (int) (ubicacion_nueva.getAccuracy() -
                 actual_mejor_ubicacion.getAccuracy());
-        boolean menos_precisa = diferencia_presicion > 0;
-        boolean mas_precisa = diferencia_presicion < 0;
-        //Si es igual de precisa pero mas nueva tambien combiene cambiar
-        if (mas_precisa) {
+        if (diferencia_presicion < 0) {
+            //Es mas precisa, conviene cambiar
             return true;
-        } else if (es_nueva && !menos_precisa) {
+        } else if (diferencia_tiempo > 0 && diferencia_presicion == 0) {
+            //Es igual de precisa y es mas nueva, conviene cambiar
             return true;
         }
         return false;
